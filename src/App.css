@@ -1947,3 +1947,405 @@ input[type="text"] {
 .ls-thidua li span {
   flex: 1;
 }
+/* =====================================================
+   RESPONSIVE — MỌI THIẾT BỊ
+   ===================================================== */
+
+/* ===== TABLET — 1024px ===== */
+@media (max-width: 1024px) {
+  .container {
+    padding: 20px;
+  }
+
+  .nhom-tabs button {
+    min-width: 120px;
+    font-size: 14px;
+    padding: 12px 12px;
+  }
+
+  table {
+    font-size: 13px;
+  }
+
+  th,
+  td {
+    padding: 10px 12px;
+  }
+}
+
+/* ===== TABLET NHỎ — 768px ===== */
+@media (max-width: 768px) {
+  body {
+    padding: 10px 0;
+  }
+
+  .container {
+    margin: 10px;
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  h1 {
+    font-size: 20px;
+  }
+
+  h3 {
+    font-size: 17px;
+  }
+
+  /* Header */
+  .header-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .header-row h1 {
+    text-align: center;
+  }
+
+  .header-row > div {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  /* Nhóm chính — thu gọn */
+  .nhom-tabs {
+    gap: 6px;
+    padding: 6px;
+  }
+
+  .nhom-tabs button {
+    min-width: calc(50% - 3px);
+    flex: 1 1 calc(50% - 3px);
+    font-size: 13px;
+    padding: 10px 8px;
+  }
+
+  /* Tab con */
+  .tabcon {
+    gap: 4px;
+    padding: 4px;
+  }
+
+  .tabcon button {
+    min-width: calc(50% - 2px);
+    flex: 1 1 calc(50% - 2px);
+    font-size: 12px;
+    padding: 8px 6px;
+  }
+
+  /* Chọn buổi */
+  .chon-buoi {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .chon-buoi span {
+    text-align: center;
+  }
+
+  .chon-buoi button {
+    width: 100%;
+  }
+
+  /* Thẻ thống kê */
+  .thong-ke {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .thong-ke .card {
+    padding: 16px;
+  }
+
+  .thong-ke .card b {
+    font-size: 26px;
+  }
+
+  /* Bảng — cho phép cuộn ngang */
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+    font-size: 12px;
+  }
+
+  table thead,
+  table tbody {
+    display: table;
+    width: 100%;
+  }
+
+  th,
+  td {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  /* Nút trong bảng */
+  table button {
+    padding: 4px 8px !important;
+    font-size: 11px !important;
+  }
+
+  /* Toolbar lịch sử */
+  .lichsu-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .lichsu-date-picker {
+    width: 100%;
+  }
+
+  .lichsu-date-picker input {
+    width: 100%;
+  }
+
+  .lichsu-quick {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .lichsu-quick button {
+    flex: 1;
+    min-width: 100px;
+    font-size: 12px;
+  }
+
+  .ngay-list button {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+
+  /* Top grid */
+  .top-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Chatbot */
+  .chatbot-khung {
+    width: calc(100% - 20px);
+    height: calc(100vh - 100px);
+    bottom: 10px;
+    right: 10px;
+    border-radius: 16px;
+  }
+
+  .chatbot-nut-noi {
+    bottom: 15px;
+    right: 15px;
+    width: 54px;
+    height: 54px;
+    font-size: 24px;
+  }
+
+  /* Modal sửa */
+  .modal-sua-box {
+    padding: 20px;
+    max-width: 100%;
+  }
+
+  /* Cài đặt */
+  .caidat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .caidat-box {
+    padding: 20px 16px;
+  }
+
+  /* Form bản tin */
+  .news-form {
+    padding: 20px 16px;
+  }
+
+  /* Bảng xếp hạng thi đua */
+  .top-box {
+    padding: 15px;
+  }
+}
+
+/* ===== ĐIỆN THOẠI — 480px ===== */
+@media (max-width: 480px) {
+  body {
+    padding: 5px 0;
+  }
+
+  .container {
+    margin: 5px;
+    padding: 12px;
+    border-radius: 12px;
+  }
+
+  h1 {
+    font-size: 18px;
+  }
+
+  h3 {
+    font-size: 15px;
+  }
+
+  /* Nút header */
+  .header-row button {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+
+  /* Nhóm chính — 1 cột 2 hàng */
+  .nhom-tabs button {
+    min-width: calc(50% - 3px);
+    font-size: 12px;
+    padding: 10px 6px;
+  }
+
+  /* Tab con — chữ nhỏ hơn */
+  .tabcon button {
+    font-size: 11px;
+    padding: 8px 4px;
+  }
+
+  /* Thẻ thống kê */
+  .thong-ke .card b {
+    font-size: 22px;
+  }
+
+  /* Bảng cực nhỏ */
+  th,
+  td {
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+
+  /* Nút trong bảng */
+  table button {
+    padding: 3px 6px !important;
+    font-size: 10px !important;
+  }
+
+  /* Modal */
+  .modal-sua-box {
+    padding: 15px;
+    border-radius: 12px;
+  }
+
+  .modal-sua-box h3 {
+    font-size: 16px;
+  }
+
+  /* Chatbot */
+  .chatbot-nut-noi {
+    width: 50px;
+    height: 50px;
+    font-size: 22px;
+  }
+
+  /* Nút chung */
+  button {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+
+  /* Input */
+  input,
+  select,
+  textarea {
+    font-size: 14px !important;
+  }
+}
+
+/* ===== ĐIỆN THOẠI CỰC NHỎ — 360px ===== */
+@media (max-width: 360px) {
+  h1 {
+    font-size: 16px;
+  }
+
+  .nhom-tabs button {
+    font-size: 11px;
+    padding: 8px 4px;
+  }
+
+  .tabcon button {
+    font-size: 10px;
+    padding: 6px 3px;
+  }
+
+  th,
+  td {
+    padding: 5px 6px;
+    font-size: 10px;
+  }
+
+  .thong-ke .card b {
+    font-size: 20px;
+  }
+}
+
+/* ===== ĐIỆN THOẠI NẰM NGANG ===== */
+@media (max-height: 500px) and (orientation: landscape) {
+  .chatbot-khung {
+    height: calc(100vh - 20px);
+    bottom: 10px;
+  }
+
+  .chatbot-body {
+    padding: 10px;
+  }
+}
+
+/* ===== HỖ TRỢ TOUCH — CHỈNH NÚT TO HƠN ===== */
+@media (hover: none) and (pointer: coarse) {
+  button {
+    min-height: 40px;
+    padding: 10px 16px;
+  }
+
+  .nhom-tabs button,
+  .tabcon button {
+    min-height: 42px;
+  }
+
+  .chon-buoi button {
+    min-height: 44px;
+  }
+
+  /* Chống zoom khi bấm input trên iPhone */
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* ===== DARK MODE (nếu máy bật chế độ tối) ===== */
+@media (prefers-color-scheme: dark) {
+  /* Không đổi màu chính — app vẫn sáng dễ đọc */
+  /* Chỉ đổi nền body để đỡ chói */
+  body {
+    background: linear-gradient(135deg, #4c5fd7 0%, #5d3b82 100%);
+  }
+}
+
+/* ===== SAFE AREA — CHO IPHONE CÓ TAI THỎ ===== */
+@supports (padding: max(0px)) {
+  body {
+    padding-left: max(10px, env(safe-area-inset-left));
+    padding-right: max(10px, env(safe-area-inset-right));
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
+
+  .chatbot-nut-noi {
+    bottom: max(25px, env(safe-area-inset-bottom, 25px));
+    right: max(25px, env(safe-area-inset-right, 25px));
+  }
+
+  .chatbot-khung {
+    bottom: max(25px, env(safe-area-inset-bottom, 25px));
+    right: max(25px, env(safe-area-inset-right, 25px));
+  }
+}
