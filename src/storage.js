@@ -201,7 +201,7 @@ export async function getAttendanceByMonth(thang) {
  * Tính thống kê cho tất cả học sinh trong 1 tháng
  * @param thang "yyyy-mm"
  */
-export async function tinhThongKeThang(thang) {
+export async function tinhThongKeThang(thang, students) {
   const dataThang = await getAttendanceByMonth(thang);
   const dsNgay = Object.keys(dataThang).sort();
 

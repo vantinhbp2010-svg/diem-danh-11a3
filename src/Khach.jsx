@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { students } from "./data";
+import { useStudents } from "./StudentsContext";
 import { getAttendance } from "./storage";
 import News from "./News";
 import "./App.css";
 
 export default function Khach() {
+  const { students } = useStudents();
   const [tab, setTab] = useState("bang");
   const [attendance, setAttendance] = useState({});
   const [today, setToday] = useState("");

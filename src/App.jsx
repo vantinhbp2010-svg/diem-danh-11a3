@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
 import { useNavigate } from "react-router-dom";
-import { students } from "./data";
 import {
   getAttendance,
   markAttendance,
@@ -16,6 +15,9 @@ import {
 import { getQRs, saveQR, deleteQR, findStudentByQR } from "./qrStorage";
 import { logout, getUser } from "./auth";
 import News from "./News";
+import TabThiDua from "./TabThiDua";
+import QuanLyLop from "./QuanLyLop";
+import { useStudents } from "./StudentsContext";
 import "./App.css";
 
 export default function App() {
@@ -32,7 +34,7 @@ export default function App() {
   const [ngayXem, setNgayXem] = useState("");
   const [attendanceNgay, setAttendanceNgay] = useState({});
   const [danhSachNgay, setDanhSachNgay] = useState([]);
-    const [thangThongKe, setThangThongKe] = useState(() => {
+  const [thangThongKe, setThangThongKe] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
@@ -40,6 +42,7 @@ export default function App() {
 
   const navigate = useNavigate();
   const user = getUser();
+  const { students, maLop, danhSachLop, chonLop } = useStudents();
 
   useEffect(() => {
     const d = new Date().toISOString().slice(0, 10);
@@ -103,13 +106,13 @@ export default function App() {
       !window.confirm(
         `Xóa điểm danh buổi ${
           buoi === "sang" ? "sáng" : "chiều"
-        } của:\n\n${hs.name} (${hs.id})?`
+        } của:\n\n${hs?.name} (${hs?.id})?`
       )
     )
       return;
     try {
       await xoaDiemDanh(id, buoi);
-      setMsg(`Đã xóa điểm danh của ${hs.name}`);
+      setMsg(`Đã xóa điểm danh của ${hs?.name}`);
       await refresh();
       setTimeout(() => setMsg(""), 3000);
     } catch (err) {
@@ -140,7 +143,7 @@ export default function App() {
     const hs = students.find((s) => s.id === id);
     if (
       !window.confirm(
-        `⚠️ XÓA TẤT CẢ dữ liệu của:\n\n${hs.name} (${hs.id})\n\n` +
+        `⚠️ XÓA TẤT CẢ dữ liệu của:\n\n${hs?.name} (${hs?.id})\n\n` +
           `Bao gồm:\n` +
           `• Điểm danh\n` +
           `• Khuôn mặt đã đăng ký\n` +
@@ -151,9 +154,9 @@ export default function App() {
       return;
 
     try {
-      setMsg(`⏳ Đang xóa dữ liệu của ${hs.name}...`);
+      setMsg(`⏳ Đang xóa dữ liệu của ${hs?.name}...`);
       await xoaTatCaCuaHocSinh(id);
-      setMsg(`✅ Đã xóa toàn bộ dữ liệu của ${hs.name}`);
+      setMsg(`✅ Đã xóa toàn bộ dữ liệu của ${hs?.name}`);
       await refresh();
       setTimeout(() => setMsg(""), 3000);
     } catch (err) {
@@ -194,21 +197,22 @@ export default function App() {
       !window.confirm(
         `Xóa điểm danh ${buoi === "sang" ? "sáng" : "chiều"} ngày ${
           ngayXem
-        } của ${hs.name}?`
+        } của ${hs?.name}?`
       )
     )
       return;
     await xoaDiemDanhTheoNgay(studentId, ngayXem, buoi);
     await doiNgay(ngayXem);
-    setMsg(`Đã xóa điểm danh của ${hs.name}`);
+    setMsg(`Đã xóa điểm danh của ${hs?.name}`);
     setTimeout(() => setMsg(""), 3000);
   }
-    // ============ THỐNG KÊ ============
+
+  // ============ THỐNG KÊ ============
   async function loadThongKe(thang) {
     try {
       const thangDung = thang || thangThongKe;
       setThangThongKe(thangDung);
-      const data = await tinhThongKeThang(thangDung);
+      const data = await tinhThongKeThang(thangDung, students);
       setDuLieuThongKe(data);
     } catch (err) {
       console.error("Lỗi thống kê:", err);
@@ -236,7 +240,7 @@ export default function App() {
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "DiemDanh");
-    XLSX.writeFile(wb, `DiemDanh_11A3_${today}.xlsx`);
+    XLSX.writeFile(wb, `DiemDanh_${today}.xlsx`);
   }
 
   // ============ XÓA HẾT ============
@@ -275,8 +279,30 @@ export default function App() {
   return (
     <div className="container">
       <div className="header-row">
-        <h1>📋 Điểm danh lớp 11A3</h1>
-        <div style={{ display: "flex", gap: 8 }}>
+        <h1>📋 Điểm danh {maLop ? `lớp ${maLop}` : "lớp 11A3"}</h1>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {Object.keys(danhSachLop).length > 0 && (
+            <select
+              value={maLop}
+              onChange={(e) => chonLop(e.target.value)}
+              style={{
+                padding: "8px 14px",
+                fontSize: 15,
+                fontWeight: 700,
+                borderRadius: 10,
+                border: "2px solid #667eea",
+                background: "white",
+                color: "#1f2937",
+                cursor: "pointer",
+              }}
+            >
+              {Object.keys(danhSachLop).map((k) => (
+                <option key={k} value={k}>
+                  Lớp {k} ({danhSachLop[k].soHS} HS)
+                </option>
+              ))}
+            </select>
+          )}
           <button
             onClick={() => navigate("/khach")}
             style={{ background: "#10b981" }}
@@ -289,7 +315,7 @@ export default function App() {
         </div>
       </div>
 
-      {/* 4 NHÓM CHÍNH */}
+      {/* 5 NHÓM CHÍNH */}
       <div className="nhom-tabs">
         <button
           className={nhom === "diemdanh" ? "active" : ""}
@@ -314,6 +340,12 @@ export default function App() {
           onClick={() => setNhom("news")}
         >
           📰 Bản tin
+        </button>
+        <button
+          className={nhom === "thidua" ? "active" : ""}
+          onClick={() => setNhom("thidua")}
+        >
+          🎯 Thi đua
         </button>
         <button
           className={nhom === "caidat" ? "active" : ""}
@@ -350,7 +382,7 @@ export default function App() {
             >
               📅 Lịch sử
             </button>
-                        <button
+            <button
               className={tabCon === "thongke" ? "active" : ""}
               onClick={() => {
                 setTabCon("thongke");
@@ -379,6 +411,7 @@ export default function App() {
                 </button>
               </div>
               <TabDiemDanh
+                students={students}
                 attendance={attendance}
                 today={today}
                 total={total}
@@ -392,11 +425,16 @@ export default function App() {
           )}
 
           {tabCon === "camera" && (
-            <TabCameraAI buoi={buoiDangChon} onMark={handleMark} />
+            <TabCameraAI
+              students={students}
+              buoi={buoiDangChon}
+              onMark={handleMark}
+            />
           )}
 
           {tabCon === "lichsu" && (
             <TabLichSu
+              students={students}
               ngayXem={ngayXem}
               danhSachNgay={danhSachNgay}
               attendanceNgay={attendanceNgay}
@@ -405,8 +443,10 @@ export default function App() {
               onXoa={handleXoaNgay}
             />
           )}
-                    {tabCon === "thongke" && (
+
+          {tabCon === "thongke" && (
             <TabThongKe
+              students={students}
               thangThongKe={thangThongKe}
               duLieuThongKe={duLieuThongKe}
               onDoiThang={loadThongKe}
@@ -431,15 +471,25 @@ export default function App() {
             >
               🪪 Đăng ký CCCD
             </button>
+            <button
+              className={tabCon === "quanly" ? "active" : ""}
+              onClick={() => setTabCon("quanly")}
+            >
+              📋 Quản lý lớp
+            </button>
           </div>
 
-          {tabCon === "dangky" && <TabDangKyMat />}
-          {tabCon === "cccd" && <TabDangKyQR />}
+          {tabCon === "dangky" && <TabDangKyMat students={students} />}
+          {tabCon === "cccd" && <TabDangKyQR students={students} />}
+          {tabCon === "quanly" && <QuanLyLop />}
         </>
       )}
 
       {/* NHÓM BẢN TIN */}
       {nhom === "news" && <News laGiaoVien={true} tenNguoiDung={user} />}
+
+      {/* NHÓM THI ĐUA */}
+      {nhom === "thidua" && <TabThiDua />}
 
       {/* NHÓM CÀI ĐẶT */}
       {nhom === "caidat" && (
@@ -474,11 +524,12 @@ export default function App() {
 }
 
 /* =============================================================
-   CÁC COMPONENT CON — GIỮ NGUYÊN
+   CÁC COMPONENT CON — nhận students qua props
    ============================================================= */
 
 /* ---------- TAB ĐIỂM DANH ---------- */
 function TabDiemDanh({
+  students,
   attendance,
   today,
   total,
@@ -584,7 +635,6 @@ function TabDiemDanh({
                         padding: "5px 10px",
                         fontSize: 13,
                       }}
-                      title="Xóa điểm danh buổi này"
                     >
                       🗑️
                     </button>
@@ -597,7 +647,6 @@ function TabDiemDanh({
                       padding: "5px 10px",
                       fontSize: 13,
                     }}
-                    title="Sửa điểm danh"
                   >
                     ✏️ Sửa
                   </button>
@@ -609,7 +658,6 @@ function TabDiemDanh({
                       padding: "5px 10px",
                       fontSize: 13,
                     }}
-                    title="Xóa TẤT CẢ: điểm danh + khuôn mặt + QR CCCD"
                   >
                     ❌
                   </button>
@@ -625,7 +673,7 @@ function TabDiemDanh({
           <div className="modal-sua-box" onClick={(e) => e.stopPropagation()}>
             <h3>✏️ Sửa điểm danh</h3>
             <p>
-              <b>{suaModal.hs.name}</b> — Buổi{" "}
+              <b>{suaModal.hs?.name}</b> — Buổi{" "}
               {buoi === "sang" ? "Sáng" : "Chiều"} ngày {today}
             </p>
 
@@ -669,7 +717,7 @@ function TabDiemDanh({
 }
 
 /* ---------- TAB CAMERA AI ---------- */
-function TabCameraAI({ buoi, onMark }) {
+function TabCameraAI({ students, buoi, onMark }) {
   const [running, setRunning] = useState(false);
   const [msg, setMsg] = useState("");
   const [mode, setMode] = useState("face");
@@ -748,7 +796,7 @@ function TabCameraAI({ buoi, onMark }) {
           const hs = students.find((s) => s.id === studentId);
           const res = await onMark(studentId, buoi);
           setSoNhanDien((c) => c + 1);
-          addLog(`🪪 ${hs.name}${res?.ok ? "" : " — " + (res?.message || "")}`);
+          addLog(`🪪 ${hs?.name}${res?.ok ? "" : " — " + (res?.message || "")}`);
         },
         () => {}
       );
@@ -843,7 +891,7 @@ function TabCameraAI({ buoi, onMark }) {
             onChange={() => setMode("face")}
             disabled={running}
           />
-          🤖 Chỉ Mặt (nhanh nhất)
+          🤖 Chỉ Mặt
         </label>
         <label>
           <input
@@ -909,8 +957,8 @@ function TabCameraAI({ buoi, onMark }) {
 }
 
 /* ---------- TAB ĐĂNG KÝ KHUÔN MẶT ---------- */
-function TabDangKyMat() {
-  const [selected, setSelected] = useState(students[0].id);
+function TabDangKyMat({ students }) {
+  const [selected, setSelected] = useState(students[0]?.id || "");
   const [status, setStatus] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -918,6 +966,13 @@ function TabDangKyMat() {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const faceapiRef = useRef(null);
+
+  useEffect(() => {
+    if (students.length > 0 && !students.find((s) => s.id === selected)) {
+      setSelected(students[0].id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [students]);
 
   useEffect(() => {
     async function init() {
@@ -957,7 +1012,7 @@ function TabDangKyMat() {
     try {
       const faceapi = faceapiRef.current;
       if (!faceapi) {
-        setStatus("❌ Model chưa load xong, đợi 2 giây rồi thử lại");
+        setStatus("❌ Model chưa load xong");
         setSaving(false);
         return;
       }
@@ -973,18 +1028,17 @@ function TabDangKyMat() {
         .withFaceDescriptor();
 
       if (!det) {
-        setStatus("❌ Không thấy khuôn mặt — nhìn thẳng camera, đủ sáng");
+        setStatus("❌ Không thấy khuôn mặt");
         setSaving(false);
         return;
       }
 
-      setStatus("⏳ Đang lưu lên Firebase...");
-
+      setStatus("⏳ Đang lưu...");
       const { saveFace } = await import("./faceStorage");
       await saveFace(selected, det.descriptor);
 
       const hs = students.find((s) => s.id === selected);
-      setStatus(`✅ Đã lưu khuôn mặt: ${hs.name}`);
+      setStatus(`✅ Đã lưu khuôn mặt: ${hs?.name}`);
       setSoDaChup((c) => c + 1);
 
       const idx = students.findIndex((s) => s.id === selected);
@@ -1000,12 +1054,12 @@ function TabDangKyMat() {
 
   async function xoaMat() {
     const hs = students.find((s) => s.id === selected);
-    if (!window.confirm(`Xóa khuôn mặt của ${hs.name}?`)) return;
+    if (!window.confirm(`Xóa khuôn mặt của ${hs?.name}?`)) return;
     setSaving(true);
     try {
       const { clearFaces } = await import("./faceStorage");
       await clearFaces(selected);
-      setStatus(`🗑️ Đã xóa khuôn mặt của ${hs.name}`);
+      setStatus(`🗑️ Đã xóa khuôn mặt của ${hs?.name}`);
     } catch (err) {
       setStatus("❌ Lỗi xóa: " + err.message);
     } finally {
@@ -1019,8 +1073,7 @@ function TabDangKyMat() {
   return (
     <>
       <p style={{ background: "#dbeafe", padding: 10, borderRadius: 8 }}>
-        💡 <b>Hướng dẫn nhanh:</b> Chọn học sinh → nhìn thẳng camera → bấm{" "}
-        <b>📸 Chụp</b>. App tự chuyển sang em tiếp theo. Trung bình ~3 giây/em.
+        💡 Chọn học sinh → nhìn thẳng camera → bấm <b>📸 Chụp</b>
       </p>
 
       <p>
@@ -1091,7 +1144,7 @@ function TabDangKyMat() {
           background: saving ? "#94a3b8" : "#3b82f6",
         }}
       >
-        {saving ? "⏳ Đang xử lý..." : `📸 Chụp khuôn mặt cho ${hs.name}`}
+        {saving ? "⏳ Đang xử lý..." : `📸 Chụp khuôn mặt cho ${hs?.name}`}
       </button>
       <button
         onClick={xoaMat}
@@ -1107,8 +1160,8 @@ function TabDangKyMat() {
 }
 
 /* ---------- TAB ĐĂNG KÝ QR CCCD ---------- */
-function TabDangKyQR() {
-  const [selected, setSelected] = useState(students[0].id);
+function TabDangKyQR({ students }) {
+  const [selected, setSelected] = useState(students[0]?.id || "");
   const [status, setStatus] = useState("");
   const [scanning, setScanning] = useState(false);
   const [qrList, setQrList] = useState({});
@@ -1118,6 +1171,13 @@ function TabDangKyQR() {
   useEffect(() => {
     loadQRs();
   }, []);
+
+  useEffect(() => {
+    if (students.length > 0 && !students.find((s) => s.id === selected)) {
+      setSelected(students[0].id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [students]);
 
   async function loadQRs() {
     try {
@@ -1148,7 +1208,7 @@ function TabDangKyQR() {
         async (decodedText) => {
           await saveQR(selected, decodedText);
           const hs = students.find((s) => s.id === selected);
-          setStatus(`✅ Đã lưu QR cho: ${hs.name}`);
+          setStatus(`✅ Đã lưu QR cho: ${hs?.name}`);
           await loadQRs();
           stopScan();
         },
@@ -1173,10 +1233,10 @@ function TabDangKyQR() {
 
   async function xoaQR(id) {
     const hs = students.find((s) => s.id === id);
-    if (!window.confirm(`Xóa QR của ${hs.name}?`)) return;
+    if (!window.confirm(`Xóa QR của ${hs?.name}?`)) return;
     await deleteQR(id);
     await loadQRs();
-    setStatus(`🗑️ Đã xóa QR của ${hs.name}`);
+    setStatus(`🗑️ Đã xóa QR của ${hs?.name}`);
   }
 
   async function luuThuCong() {
@@ -1186,7 +1246,7 @@ function TabDangKyQR() {
     }
     await saveQR(selected, manual.trim());
     const hs = students.find((s) => s.id === selected);
-    setStatus(`✅ Đã lưu thủ công cho: ${hs.name}`);
+    setStatus(`✅ Đã lưu thủ công cho: ${hs?.name}`);
     await loadQRs();
     setManual("");
   }
@@ -1200,8 +1260,7 @@ function TabDangKyQR() {
         Đã đăng ký: <b>{daDangKy}</b> / {students.length} học sinh
       </p>
       <p style={{ background: "#fef3c7", padding: 10, borderRadius: 8 }}>
-        💡 <b>Mẹo quét CCCD:</b> Đưa cách camera 10–15cm, giữ yên 2–3 giây,
-        nghiêng nhẹ tránh hologram. Nếu không được → dùng nhập tay bên dưới.
+        💡 Đưa CCCD cách camera 10–15cm, giữ yên 2–3 giây
       </p>
 
       <select
@@ -1228,7 +1287,7 @@ function TabDangKyQR() {
       ></div>
 
       {!scanning ? (
-        <button onClick={startScan}>📷 Bắt đầu quét QR CCCD</button>
+        <button onClick={startScan}>📷 Bắt đầu quét</button>
       ) : (
         <button onClick={stopScan} style={{ background: "#e74c3c" }}>
           ⏹ Dừng
@@ -1243,13 +1302,13 @@ function TabDangKyQR() {
           borderRadius: 8,
         }}
       >
-        <b>⌨️ Nhập tay (khi QR không quét được):</b>
+        <b>⌨️ Nhập tay:</b>
         <div
           style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}
         >
           <input
             type="text"
-            placeholder="Dán nội dung QR hoặc số CCCD"
+            placeholder="Dán nội dung QR"
             value={manual}
             onChange={(e) => setManual(e.target.value)}
             style={{
@@ -1264,15 +1323,6 @@ function TabDangKyQR() {
           <button onClick={luuThuCong}>💾 Lưu</button>
         </div>
       </div>
-
-      {qrList[selected] && (
-        <button
-          onClick={() => xoaQR(selected)}
-          style={{ background: "#e74c3c", marginTop: 15 }}
-        >
-          🗑️ Xóa QR của {hs.name}
-        </button>
-      )}
 
       {status && <div className="msg">{status}</div>}
 
@@ -1312,6 +1362,7 @@ function TabDangKyQR() {
 
 /* ---------- TAB LỊCH SỬ ---------- */
 function TabLichSu({
+  students,
   ngayXem,
   danhSachNgay,
   attendanceNgay,
@@ -1351,6 +1402,8 @@ function TabLichSu({
     const [y, m, d] = ngay.split("-");
     return `${d}/${m}/${y}`;
   }
+
+  if (!ngayXem) return <p>⏳ Đang tải...</p>;
 
   const [y, m, d] = ngayXem.split("-");
   const tenThu = new Date(`${y}-${m}-${d}`).toLocaleDateString("vi-VN", {
@@ -1401,34 +1454,8 @@ function TabLichSu({
           >
             Hôm qua
           </button>
-          <button
-            onClick={() => {
-              const d = new Date();
-              d.setDate(d.getDate() - 7);
-              onDoiNgay(d.toISOString().slice(0, 10));
-            }}
-          >
-            7 ngày trước
-          </button>
         </div>
       </div>
-
-      {danhSachNgay.length > 0 && (
-        <div className="lichsu-danh-sach-ngay">
-          <label>📆 Các ngày có dữ liệu:</label>
-          <div className="ngay-list">
-            {danhSachNgay.slice(0, 10).map((n) => (
-              <button
-                key={n}
-                className={n === ngayXem ? "active" : ""}
-                onClick={() => onDoiNgay(n)}
-              >
-                {formatNgay(n)}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       <p style={{ marginTop: 20 }}>
         📅 <b>{tenThu}</b>, ngày <b>{formatNgay(ngayXem)}</b> — Buổi{" "}
@@ -1513,7 +1540,7 @@ function TabLichSu({
           <div className="modal-sua-box" onClick={(e) => e.stopPropagation()}>
             <h3>✏️ Sửa điểm danh</h3>
             <p>
-              <b>{suaModal.hs.name}</b> — Buổi{" "}
+              <b>{suaModal.hs?.name}</b> — Buổi{" "}
               {buoi === "sang" ? "Sáng" : "Chiều"} ngày {formatNgay(ngayXem)}
             </p>
 
@@ -1555,8 +1582,9 @@ function TabLichSu({
     </>
   );
 }
+
 /* ---------- TAB THỐNG KÊ ---------- */
-function TabThongKe({ thangThongKe, duLieuThongKe, onDoiThang }) {
+function TabThongKe({ students, thangThongKe, duLieuThongKe, onDoiThang }) {
   const [sortBy, setSortBy] = useState("ten");
 
   if (!duLieuThongKe) {
@@ -1569,13 +1597,11 @@ function TabThongKe({ thangThongKe, duLieuThongKe, onDoiThang }) {
 
   const { soNgay, thongKe, dsNgay } = duLieuThongKe;
 
-  // Tính tổng
   const tongDungGio = thongKe.reduce((s, e) => s + e.dungGio, 0);
   const tongDiTre = thongKe.reduce((s, e) => s + e.diTre, 0);
   const tongVang = thongKe.reduce((s, e) => s + e.vang, 0);
   const tongBuoi = thongKe.reduce((s, e) => s + e.tongBuoi, 0);
 
-  // Sắp xếp
   let dsSapXep = [...thongKe];
   if (sortBy === "ten") {
     dsSapXep.sort((a, b) => a.name.localeCompare(b.name));
@@ -1587,31 +1613,26 @@ function TabThongKe({ thangThongKe, duLieuThongKe, onDoiThang }) {
     dsSapXep.sort((a, b) => b.vang - a.vang);
   }
 
-  // Top 5 đi trễ
   const top5Tre = [...thongKe]
     .filter((e) => e.diTre > 0)
     .sort((a, b) => b.diTre - a.diTre)
     .slice(0, 5);
 
-  // Top 5 vắng
   const top5Vang = [...thongKe]
     .filter((e) => e.vang > 0)
     .sort((a, b) => b.vang - a.vang)
     .slice(0, 5);
 
-  // Format tháng
   function formatThang(t) {
     const [y, m] = t.split("-");
     return `Tháng ${parseInt(m)}/${y}`;
   }
 
-  // Tỉ lệ chuyên cần
   function tiLe(e) {
     if (e.tongBuoi === 0) return 0;
     return Math.round(((e.dungGio + e.diTre) / e.tongBuoi) * 100);
   }
 
-  // Xuất Excel
   async function xuatExcel() {
     const XLSX = await import("xlsx");
     const rows = thongKe.map((e, i) => ({
@@ -1627,7 +1648,7 @@ function TabThongKe({ thangThongKe, duLieuThongKe, onDoiThang }) {
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "ThongKe");
-    XLSX.writeFile(wb, `ThongKe_11A3_${thangThongKe}.xlsx`);
+    XLSX.writeFile(wb, `ThongKe_${thangThongKe}.xlsx`);
   }
 
   return (
@@ -1654,7 +1675,6 @@ function TabThongKe({ thangThongKe, duLieuThongKe, onDoiThang }) {
         Có <b>{soNgay}</b> ngày điểm danh trong tháng
       </p>
 
-      {/* Thẻ tổng quan */}
       <div className="thong-ke">
         <div className="card dunggio">
           ✅ Tổng đúng giờ <b>{tongDungGio}</b>
@@ -1667,17 +1687,6 @@ function TabThongKe({ thangThongKe, duLieuThongKe, onDoiThang }) {
         </div>
       </div>
 
-      <p style={{ textAlign: "center", marginTop: -10, color: "#64748b" }}>
-        Tổng số buổi cả lớp: <b>{tongBuoi}</b> — Tỉ lệ chuyên cần:{" "}
-        <b style={{ color: "#10b981" }}>
-          {tongBuoi > 0
-            ? Math.round(((tongDungGio + tongDiTre) / tongBuoi) * 100)
-            : 0}
-          %
-        </b>
-      </p>
-
-      {/* Top 5 đi trễ + top 5 vắng */}
       <div className="top-grid">
         <div className="top-box">
           <h4>🥇 Top 5 đi trễ nhiều nhất</h4>
@@ -1720,7 +1729,6 @@ function TabThongKe({ thangThongKe, duLieuThongKe, onDoiThang }) {
         </div>
       </div>
 
-      {/* Sắp xếp */}
       <div style={{ marginTop: 25, marginBottom: 10 }}>
         <b>Sắp xếp theo: </b>
         <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
@@ -1731,7 +1739,6 @@ function TabThongKe({ thangThongKe, duLieuThongKe, onDoiThang }) {
         </select>
       </div>
 
-      {/* Bảng chi tiết */}
       <table>
         <thead>
           <tr>
