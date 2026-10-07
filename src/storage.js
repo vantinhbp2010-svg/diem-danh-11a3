@@ -131,3 +131,52 @@ export async function xoaTatCaCuaHocSinh(studentId) {
     console.warn("Lỗi xóa QR:", e);
   }
 }
+/**
+ * Lấy điểm danh của 1 ngày cụ thể
+ * @param date "yyyy-mm-dd"
+ */
+export async function getAttendanceByDate(date) {
+  const all = await getAttendance();
+  return all[date] || {};
+}
+
+/**
+ * Lấy danh sách tất cả các ngày có dữ liệu
+ * Trả về mảng ["2026-10-01", "2026-10-02", ...] sắp xếp mới → cũ
+ */
+export async function getDanhSachNgay() {
+  const all = await getAttendance();
+  return Object.keys(all).sort().reverse();
+}
+
+/**
+ * Sửa điểm danh thủ công
+ */
+export async function updateAttendance(studentId, date, buoi, status, time) {
+  const data = await getAttendance();
+  if (!data[date]) data[date] = {};
+  if (!data[date][studentId]) data[date][studentId] = {};
+
+  data[date][studentId][buoi] = { status, time };
+  await saveAttendance(data);
+}
+
+/**
+ * Xóa điểm danh 1 em trong 1 ngày cụ thể
+ */
+export async function xoaDiemDanhTheoNgay(studentId, date, buoi) {
+  const data = await getAttendance();
+  if (!data[date] || !data[date][studentId]) return;
+
+  if (buoi) {
+    delete data[date][studentId][buoi];
+  } else {
+    delete data[date][studentId];
+  }
+
+  if (Object.keys(data[date][studentId] || {}).length === 0) {
+    delete data[date][studentId];
+  }
+
+  await saveAttendance(data);
+}

@@ -7,6 +7,10 @@ import {
   markAttendance,
   xoaDiemDanh,
   xoaTatCaCuaHocSinh,
+  getAttendanceByDate,
+  getDanhSachNgay,
+  updateAttendance,
+  xoaDiemDanhTheoNgay,
 } from "./storage";
 import { getQRs, saveQR, deleteQR, findStudentByQR } from "./qrStorage";
 import { logout, getUser } from "./auth";
@@ -18,7 +22,14 @@ export default function App() {
   const [attendance, setAttendance] = useState({});
   const [today, setToday] = useState("");
   const [msg, setMsg] = useState("");
-  const [buoiDangChon, setBuoiDangChon] = useState("sang");
+  const [buoiDangChon, setBuoiDangChon] = useState(() => {
+    const gio = new Date().getHours();
+    return gio >= 12 ? "chieu" : "sang";
+  });
+
+  const [ngayXem, setNgayXem] = useState("");
+  const [attendanceNgay, setAttendanceNgay] = useState({});
+  const [danhSachNgay, setDanhSachNgay] = useState([]);
 
   const navigate = useNavigate();
   const user = getUser();
@@ -30,6 +41,16 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Tự chuyển buổi theo giờ khi vào tab Điểm danh hoặc Camera
+  useEffect(() => {
+    if (tab === "diemdanh" || tab === "camera") {
+      const gio = new Date().getHours();
+      setBuoiDangChon(gio >= 12 ? "chieu" : "sang");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+
+  // ============ LOAD DATA ============
   async function loadData() {
     try {
       const data = await getAttendance();
@@ -50,6 +71,7 @@ export default function App() {
     }
   }
 
+  // ============ ĐIỂM DANH HÔM NAY ============
   async function handleMark(id, buoi) {
     try {
       const res = await markAttendance(id, buoi);
@@ -88,6 +110,25 @@ export default function App() {
     }
   }
 
+  async function handleSuaHomNay(id, buoi, status, time) {
+    try {
+      const data = await getAttendance();
+      const today = new Date().toISOString().slice(0, 10);
+      if (!data[today]) data[today] = {};
+      if (!data[today][id]) data[today][id] = {};
+
+      data[today][id][buoi] = { status, time };
+      const { saveAttendance } = await import("./storage");
+      await saveAttendance(data);
+
+      setMsg(`✅ Đã sửa điểm danh`);
+      await refresh();
+      setTimeout(() => setMsg(""), 3000);
+    } catch (err) {
+      setMsg("❌ Lỗi sửa: " + err.message);
+    }
+  }
+
   async function handleXoaTatCa(id) {
     const hs = students.find((s) => s.id === id);
     if (
@@ -113,6 +154,50 @@ export default function App() {
     }
   }
 
+  // ============ LỊCH SỬ ============
+  async function loadLichSu() {
+    try {
+      const ds = await getDanhSachNgay();
+      setDanhSachNgay(ds);
+      const ngay = ngayXem || new Date().toISOString().slice(0, 10);
+      if (!ngayXem) setNgayXem(ngay);
+      const data = await getAttendanceByDate(ngay);
+      setAttendanceNgay(data);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function doiNgay(ngay) {
+    setNgayXem(ngay);
+    const data = await getAttendanceByDate(ngay);
+    setAttendanceNgay(data);
+  }
+
+  async function handleSuaDiemDanh(studentId, buoi, status, time) {
+    await updateAttendance(studentId, ngayXem, buoi, status, time);
+    setMsg(`Đã sửa điểm danh`);
+    await doiNgay(ngayXem);
+    setTimeout(() => setMsg(""), 3000);
+  }
+
+  async function handleXoaNgay(studentId, buoi) {
+    const hs = students.find((s) => s.id === studentId);
+    if (
+      !window.confirm(
+        `Xóa điểm danh ${buoi === "sang" ? "sáng" : "chiều"} ngày ${
+          ngayXem
+        } của ${hs.name}?`
+      )
+    )
+      return;
+    await xoaDiemDanhTheoNgay(studentId, ngayXem, buoi);
+    await doiNgay(ngayXem);
+    setMsg(`Đã xóa điểm danh của ${hs.name}`);
+    setTimeout(() => setMsg(""), 3000);
+  }
+
+  // ============ EXCEL ============
   function exportExcel() {
     const rows = students.map((s, i) => {
       const a = attendance[s.id] || {};
@@ -135,6 +220,7 @@ export default function App() {
     XLSX.writeFile(wb, `DiemDanh_11A3_${today}.xlsx`);
   }
 
+  // ============ XÓA HẾT ============
   async function xoaDuLieu() {
     if (
       !window.confirm(
@@ -209,11 +295,20 @@ export default function App() {
         >
           🧑 Đăng ký mặt
         </button>
-                <button
+        <button
           className={tab === "news" ? "active" : ""}
           onClick={() => setTab("news")}
         >
           📰 Bản tin
+        </button>
+        <button
+          className={tab === "lichsu" ? "active" : ""}
+          onClick={() => {
+            setTab("lichsu");
+            loadLichSu();
+          }}
+        >
+          📅 Lịch sử
         </button>
         <button onClick={exportExcel}>📊 Xuất Excel</button>
         <button onClick={xoaDuLieu} style={{ background: "#e74c3c" }}>
@@ -248,6 +343,7 @@ export default function App() {
             onMark={handleMark}
             onXoa={handleXoa}
             onXoaTatCa={handleXoaTatCa}
+            onSua={handleSuaHomNay}
           />
         </>
       )}
@@ -275,7 +371,18 @@ export default function App() {
 
       {tab === "dangkyqr" && <TabDangKyQR />}
       {tab === "dangky" && <TabDangKyMat />}
-            {tab === "news" && <News laGiaoVien={true} tenNguoiDung={user} />}
+      {tab === "news" && <News laGiaoVien={true} tenNguoiDung={user} />}
+
+      {tab === "lichsu" && (
+        <TabLichSu
+          ngayXem={ngayXem}
+          danhSachNgay={danhSachNgay}
+          attendanceNgay={attendanceNgay}
+          onDoiNgay={doiNgay}
+          onSua={handleSuaDiemDanh}
+          onXoa={handleXoaNgay}
+        />
+      )}
     </div>
   );
 }
@@ -289,7 +396,12 @@ function TabDiemDanh({
   onMark,
   onXoa,
   onXoaTatCa,
+  onSua,
 }) {
+  const [suaModal, setSuaModal] = useState(null);
+  const [suaStatus, setSuaStatus] = useState("Đúng giờ");
+  const [suaTime, setSuaTime] = useState("");
+
   const dem = { "Đúng giờ": 0, "Đi trễ": 0, "Vắng": 0 };
   students.forEach((s) => {
     const a = (attendance[s.id] || {})[buoi];
@@ -300,6 +412,21 @@ function TabDiemDanh({
   const tenBuoi = buoi === "sang" ? "Sáng" : "Chiều";
   const gioChuan = buoi === "sang" ? "7h00" : "13h30";
   const hanTre = buoi === "sang" ? "7h45" : "14h15";
+
+  function moSuaModal(studentId) {
+    const hs = students.find((s) => s.id === studentId);
+    const a = (attendance[studentId] || {})[buoi];
+    setSuaModal({ studentId, hs });
+    setSuaStatus(a?.status || "Đúng giờ");
+    setSuaTime(a?.time || new Date().toTimeString().slice(0, 5));
+  }
+
+  function luuSua() {
+    if (suaModal && onSua) {
+      onSua(suaModal.studentId, buoi, suaStatus, suaTime);
+      setSuaModal(null);
+    }
+  }
 
   return (
     <>
@@ -367,11 +494,23 @@ function TabDiemDanh({
                         padding: "5px 10px",
                         fontSize: 13,
                       }}
-                      title="Chỉ xóa điểm danh buổi này"
+                      title="Xóa điểm danh buổi này"
                     >
-                      🗑️ ĐD
+                      🗑️
                     </button>
                   )}
+                  <button
+                    onClick={() => moSuaModal(s.id)}
+                    style={{
+                      background: "#3b82f6",
+                      marginLeft: 4,
+                      padding: "5px 10px",
+                      fontSize: 13,
+                    }}
+                    title="Sửa điểm danh"
+                  >
+                    ✏️ Sửa
+                  </button>
                   <button
                     onClick={() => onXoaTatCa(s.id)}
                     style={{
@@ -382,7 +521,7 @@ function TabDiemDanh({
                     }}
                     title="Xóa TẤT CẢ: điểm danh + khuôn mặt + QR CCCD"
                   >
-                    ❌ Xóa hết
+                    ❌
                   </button>
                 </td>
               </tr>
@@ -390,6 +529,51 @@ function TabDiemDanh({
           })}
         </tbody>
       </table>
+
+      {suaModal && (
+        <div className="modal-sua" onClick={() => setSuaModal(null)}>
+          <div className="modal-sua-box" onClick={(e) => e.stopPropagation()}>
+            <h3>✏️ Sửa điểm danh</h3>
+            <p>
+              <b>{suaModal.hs.name}</b> — Buổi{" "}
+              {buoi === "sang" ? "Sáng" : "Chiều"} ngày {today}
+            </p>
+
+            <div className="sua-group">
+              <label>Trạng thái:</label>
+              <select
+                value={suaStatus}
+                onChange={(e) => setSuaStatus(e.target.value)}
+              >
+                <option value="Đúng giờ">✅ Đúng giờ</option>
+                <option value="Đi trễ">🟡 Đi trễ</option>
+                <option value="Vắng">❌ Vắng</option>
+              </select>
+            </div>
+
+            <div className="sua-group">
+              <label>Giờ vào (hh:mm):</label>
+              <input
+                type="time"
+                value={suaTime}
+                onChange={(e) => setSuaTime(e.target.value)}
+              />
+            </div>
+
+            <div className="modal-buttons">
+              <button
+                onClick={() => setSuaModal(null)}
+                style={{ background: "#94a3b8" }}
+              >
+                ❌ Hủy
+              </button>
+              <button onClick={luuSua} style={{ background: "#10b981" }}>
+                ✅ Lưu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -474,9 +658,7 @@ function TabCameraAI({ buoi, onMark }) {
           const hs = students.find((s) => s.id === studentId);
           const res = await onMark(studentId, buoi);
           setSoNhanDien((c) => c + 1);
-          addLog(
-            `🪪 ${hs.name}${res?.ok ? "" : " — " + (res?.message || "")}`
-          );
+          addLog(`🪪 ${hs.name}${res?.ok ? "" : " — " + (res?.message || "")}`);
         },
         () => {}
       );
@@ -833,6 +1015,7 @@ function TabDangKyMat() {
     </>
   );
 }
+
 /* ---------- TAB ĐĂNG KÝ QR CCCD ---------- */
 function TabDangKyQR() {
   const [selected, setSelected] = useState(students[0].id);
@@ -1033,6 +1216,252 @@ function TabDangKyQR() {
           ))}
         </tbody>
       </table>
+    </>
+  );
+}
+
+/* ---------- TAB LỊCH SỬ ---------- */
+function TabLichSu({
+  ngayXem,
+  danhSachNgay,
+  attendanceNgay,
+  onDoiNgay,
+  onSua,
+  onXoa,
+}) {
+  const [buoi, setBuoi] = useState("sang");
+  const [suaModal, setSuaModal] = useState(null);
+  const [suaStatus, setSuaStatus] = useState("Đúng giờ");
+  const [suaTime, setSuaTime] = useState("");
+
+  const dem = { "Đúng giờ": 0, "Đi trễ": 0, "Vắng": 0 };
+  students.forEach((s) => {
+    const a = (attendanceNgay[s.id] || {})[buoi];
+    if (!a) dem["Vắng"]++;
+    else dem[a.status] = (dem[a.status] || 0) + 1;
+  });
+
+  function moSuaModal(studentId) {
+    const hs = students.find((s) => s.id === studentId);
+    const a = (attendanceNgay[studentId] || {})[buoi];
+    setSuaModal({ studentId, hs });
+    setSuaStatus(a?.status || "Đúng giờ");
+    setSuaTime(a?.time || new Date().toTimeString().slice(0, 5));
+  }
+
+  function luuSua() {
+    if (suaModal) {
+      onSua(suaModal.studentId, buoi, suaStatus, suaTime);
+      setSuaModal(null);
+    }
+  }
+
+  function formatNgay(ngay) {
+    if (!ngay) return "";
+    const [y, m, d] = ngay.split("-");
+    return `${d}/${m}/${y}`;
+  }
+
+  const [y, m, d] = ngayXem.split("-");
+  const tenThu = new Date(`${y}-${m}-${d}`).toLocaleDateString("vi-VN", {
+    weekday: "long",
+  });
+
+  return (
+    <>
+      <div className="chon-buoi" style={{ marginBottom: 15 }}>
+        <span>Chọn buổi:</span>
+        <button
+          className={buoi === "sang" ? "active" : ""}
+          onClick={() => setBuoi("sang")}
+        >
+          🌅 Sáng
+        </button>
+        <button
+          className={buoi === "chieu" ? "active" : ""}
+          onClick={() => setBuoi("chieu")}
+        >
+          🌆 Chiều
+        </button>
+      </div>
+
+      <div className="lichsu-toolbar">
+        <div className="lichsu-date-picker">
+          <label>📅 Xem ngày:</label>
+          <input
+            type="date"
+            value={ngayXem}
+            onChange={(e) => onDoiNgay(e.target.value)}
+            max={new Date().toISOString().slice(0, 10)}
+          />
+        </div>
+
+        <div className="lichsu-quick">
+          <button
+            onClick={() => onDoiNgay(new Date().toISOString().slice(0, 10))}
+          >
+            Hôm nay
+          </button>
+          <button
+            onClick={() => {
+              const d = new Date();
+              d.setDate(d.getDate() - 1);
+              onDoiNgay(d.toISOString().slice(0, 10));
+            }}
+          >
+            Hôm qua
+          </button>
+          <button
+            onClick={() => {
+              const d = new Date();
+              d.setDate(d.getDate() - 7);
+              onDoiNgay(d.toISOString().slice(0, 10));
+            }}
+          >
+            7 ngày trước
+          </button>
+        </div>
+      </div>
+
+      {danhSachNgay.length > 0 && (
+        <div className="lichsu-danh-sach-ngay">
+          <label>📆 Các ngày có dữ liệu:</label>
+          <div className="ngay-list">
+            {danhSachNgay.slice(0, 10).map((n) => (
+              <button
+                key={n}
+                className={n === ngayXem ? "active" : ""}
+                onClick={() => onDoiNgay(n)}
+              >
+                {formatNgay(n)}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <p style={{ marginTop: 20 }}>
+        📅 <b>{tenThu}</b>, ngày <b>{formatNgay(ngayXem)}</b> — Buổi{" "}
+        <b>{buoi === "sang" ? "Sáng" : "Chiều"}</b>
+      </p>
+
+      <div className="thong-ke">
+        <div className="card dunggio">
+          ✅ Đúng giờ <b>{dem["Đúng giờ"]}</b>
+        </div>
+        <div className="card tre">
+          🟡 Đi trễ <b>{dem["Đi trễ"]}</b>
+        </div>
+        <div className="card vang">
+          ❌ Vắng <b>{dem["Vắng"]}</b>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>STT</th>
+            <th>Họ tên</th>
+            <th>Trạng thái</th>
+            <th>Giờ vào</th>
+            <th>Hành động</th>
+          </tr>
+        </thead>
+        <tbody>
+          {students.map((s, i) => {
+            const a = (attendanceNgay[s.id] || {})[buoi];
+            let status = "❌ Vắng";
+            let cls = "vang";
+            if (a) {
+              if (a.status === "Đúng giờ") {
+                status = "✅ Đúng giờ";
+                cls = "dunggio";
+              } else if (a.status === "Đi trễ") {
+                status = "🟡 Đi trễ";
+                cls = "tre";
+              }
+            }
+            return (
+              <tr key={s.id} className={cls}>
+                <td>{i + 1}</td>
+                <td>{s.name}</td>
+                <td>{status}</td>
+                <td>{a ? a.time : "—"}</td>
+                <td>
+                  <button
+                    onClick={() => moSuaModal(s.id)}
+                    style={{
+                      background: "#3b82f6",
+                      padding: "5px 10px",
+                      fontSize: 13,
+                    }}
+                  >
+                    ✏️ Sửa
+                  </button>
+                  {a && (
+                    <button
+                      onClick={() => onXoa(s.id, buoi)}
+                      style={{
+                        background: "#e74c3c",
+                        marginLeft: 4,
+                        padding: "5px 10px",
+                        fontSize: 13,
+                      }}
+                    >
+                      🗑️
+                    </button>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      {suaModal && (
+        <div className="modal-sua" onClick={() => setSuaModal(null)}>
+          <div className="modal-sua-box" onClick={(e) => e.stopPropagation()}>
+            <h3>✏️ Sửa điểm danh</h3>
+            <p>
+              <b>{suaModal.hs.name}</b> — Buổi{" "}
+              {buoi === "sang" ? "Sáng" : "Chiều"} ngày {formatNgay(ngayXem)}
+            </p>
+
+            <div className="sua-group">
+              <label>Trạng thái:</label>
+              <select
+                value={suaStatus}
+                onChange={(e) => setSuaStatus(e.target.value)}
+              >
+                <option value="Đúng giờ">✅ Đúng giờ</option>
+                <option value="Đi trễ">🟡 Đi trễ</option>
+                <option value="Vắng">❌ Vắng</option>
+              </select>
+            </div>
+
+            <div className="sua-group">
+              <label>Giờ vào (hh:mm):</label>
+              <input
+                type="time"
+                value={suaTime}
+                onChange={(e) => setSuaTime(e.target.value)}
+              />
+            </div>
+
+            <div className="modal-buttons">
+              <button
+                onClick={() => setSuaModal(null)}
+                style={{ background: "#94a3b8" }}
+              >
+                ❌ Hủy
+              </button>
+              <button onClick={luuSua} style={{ background: "#10b981" }}>
+                ✅ Lưu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
