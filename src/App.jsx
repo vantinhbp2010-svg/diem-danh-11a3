@@ -18,7 +18,8 @@ import News from "./News";
 import "./App.css";
 
 export default function App() {
-  const [tab, setTab] = useState("diemdanh");
+  const [nhom, setNhom] = useState("diemdanh");
+  const [tabCon, setTabCon] = useState("homnay");
   const [attendance, setAttendance] = useState({});
   const [today, setToday] = useState("");
   const [msg, setMsg] = useState("");
@@ -41,14 +42,14 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Tự chuyển buổi theo giờ khi vào tab Điểm danh hoặc Camera
+  // Tự chuyển buổi theo giờ
   useEffect(() => {
-    if (tab === "diemdanh" || tab === "camera") {
+    if (nhom === "diemdanh") {
       const gio = new Date().getHours();
       setBuoiDangChon(gio >= 12 ? "chieu" : "sang");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab]);
+  }, [nhom, tabCon]);
 
   // ============ LOAD DATA ============
   async function loadData() {
@@ -113,11 +114,11 @@ export default function App() {
   async function handleSuaHomNay(id, buoi, status, time) {
     try {
       const data = await getAttendance();
-      const today = new Date().toISOString().slice(0, 10);
-      if (!data[today]) data[today] = {};
-      if (!data[today][id]) data[today][id] = {};
+      const todayStr = new Date().toISOString().slice(0, 10);
+      if (!data[todayStr]) data[todayStr] = {};
+      if (!data[todayStr][id]) data[todayStr][id] = {};
 
-      data[today][id][buoi] = { status, time };
+      data[todayStr][id][buoi] = { status, time };
       const { saveAttendance } = await import("./storage");
       await saveAttendance(data);
 
@@ -270,122 +271,177 @@ export default function App() {
         </div>
       </div>
 
-      <div className="tabs">
+      {/* 4 NHÓM CHÍNH */}
+      <div className="nhom-tabs">
         <button
-          className={tab === "diemdanh" ? "active" : ""}
-          onClick={() => setTab("diemdanh")}
+          className={nhom === "diemdanh" ? "active" : ""}
+          onClick={() => {
+            setNhom("diemdanh");
+            setTabCon("homnay");
+          }}
         >
           📋 Điểm danh
         </button>
         <button
-          className={tab === "camera" ? "active" : ""}
-          onClick={() => setTab("camera")}
+          className={nhom === "hocsinh" ? "active" : ""}
+          onClick={() => {
+            setNhom("hocsinh");
+            setTabCon("dangky");
+          }}
         >
-          🎥 Camera AI
+          👥 Học sinh
         </button>
         <button
-          className={tab === "dangkyqr" ? "active" : ""}
-          onClick={() => setTab("dangkyqr")}
-        >
-          🪪 Đăng ký CCCD
-        </button>
-        <button
-          className={tab === "dangky" ? "active" : ""}
-          onClick={() => setTab("dangky")}
-        >
-          🧑 Đăng ký mặt
-        </button>
-        <button
-          className={tab === "news" ? "active" : ""}
-          onClick={() => setTab("news")}
+          className={nhom === "news" ? "active" : ""}
+          onClick={() => setNhom("news")}
         >
           📰 Bản tin
         </button>
         <button
-          className={tab === "lichsu" ? "active" : ""}
-          onClick={() => {
-            setTab("lichsu");
-            loadLichSu();
-          }}
+          className={nhom === "caidat" ? "active" : ""}
+          onClick={() => setNhom("caidat")}
         >
-          📅 Lịch sử
-        </button>
-        <button onClick={exportExcel}>📊 Xuất Excel</button>
-        <button onClick={xoaDuLieu} style={{ background: "#e74c3c" }}>
-          🗑️ Xóa tất cả
+          ⚙️ Cài đặt
         </button>
       </div>
 
       {msg && <div className="msg">{msg}</div>}
 
-      {tab === "diemdanh" && (
+      {/* NHÓM ĐIỂM DANH */}
+      {nhom === "diemdanh" && (
         <>
-          <div className="chon-buoi">
-            <span>Buổi đang điểm danh:</span>
+          <div className="tabcon">
             <button
-              className={buoiDangChon === "sang" ? "active" : ""}
-              onClick={() => setBuoiDangChon("sang")}
+              className={tabCon === "homnay" ? "active" : ""}
+              onClick={() => setTabCon("homnay")}
             >
-              🌅 Sáng (7h00 — trễ sau 7h45 = vắng)
+              📋 Hôm nay
             </button>
             <button
-              className={buoiDangChon === "chieu" ? "active" : ""}
-              onClick={() => setBuoiDangChon("chieu")}
+              className={tabCon === "camera" ? "active" : ""}
+              onClick={() => setTabCon("camera")}
             >
-              🌆 Chiều (13h30 — trễ sau 14h15 = vắng)
+              🎥 Camera AI
+            </button>
+            <button
+              className={tabCon === "lichsu" ? "active" : ""}
+              onClick={() => {
+                setTabCon("lichsu");
+                loadLichSu();
+              }}
+            >
+              📅 Lịch sử
             </button>
           </div>
-          <TabDiemDanh
-            attendance={attendance}
-            today={today}
-            total={total}
-            buoi={buoiDangChon}
-            onMark={handleMark}
-            onXoa={handleXoa}
-            onXoaTatCa={handleXoaTatCa}
-            onSua={handleSuaHomNay}
-          />
+
+          {tabCon === "homnay" && (
+            <>
+              <div className="chon-buoi">
+                <span>Buổi:</span>
+                <button
+                  className={buoiDangChon === "sang" ? "active" : ""}
+                  onClick={() => setBuoiDangChon("sang")}
+                >
+                  🌅 Sáng (7h00 — trễ sau 7h45)
+                </button>
+                <button
+                  className={buoiDangChon === "chieu" ? "active" : ""}
+                  onClick={() => setBuoiDangChon("chieu")}
+                >
+                  🌆 Chiều (13h30 — trễ sau 14h15)
+                </button>
+              </div>
+              <TabDiemDanh
+                attendance={attendance}
+                today={today}
+                total={total}
+                buoi={buoiDangChon}
+                onMark={handleMark}
+                onXoa={handleXoa}
+                onXoaTatCa={handleXoaTatCa}
+                onSua={handleSuaHomNay}
+              />
+            </>
+          )}
+
+          {tabCon === "camera" && (
+            <TabCameraAI buoi={buoiDangChon} onMark={handleMark} />
+          )}
+
+          {tabCon === "lichsu" && (
+            <TabLichSu
+              ngayXem={ngayXem}
+              danhSachNgay={danhSachNgay}
+              attendanceNgay={attendanceNgay}
+              onDoiNgay={doiNgay}
+              onSua={handleSuaDiemDanh}
+              onXoa={handleXoaNgay}
+            />
+          )}
         </>
       )}
 
-      {tab === "camera" && (
+      {/* NHÓM HỌC SINH */}
+      {nhom === "hocsinh" && (
         <>
-          <div className="chon-buoi">
-            <span>Buổi đang điểm danh:</span>
+          <div className="tabcon">
             <button
-              className={buoiDangChon === "sang" ? "active" : ""}
-              onClick={() => setBuoiDangChon("sang")}
+              className={tabCon === "dangky" ? "active" : ""}
+              onClick={() => setTabCon("dangky")}
             >
-              🌅 Sáng
+              🧑 Đăng ký mặt
             </button>
             <button
-              className={buoiDangChon === "chieu" ? "active" : ""}
-              onClick={() => setBuoiDangChon("chieu")}
+              className={tabCon === "cccd" ? "active" : ""}
+              onClick={() => setTabCon("cccd")}
             >
-              🌆 Chiều
+              🪪 Đăng ký CCCD
             </button>
           </div>
-          <TabCameraAI buoi={buoiDangChon} onMark={handleMark} />
+
+          {tabCon === "dangky" && <TabDangKyMat />}
+          {tabCon === "cccd" && <TabDangKyQR />}
         </>
       )}
 
-      {tab === "dangkyqr" && <TabDangKyQR />}
-      {tab === "dangky" && <TabDangKyMat />}
-      {tab === "news" && <News laGiaoVien={true} tenNguoiDung={user} />}
+      {/* NHÓM BẢN TIN */}
+      {nhom === "news" && <News laGiaoVien={true} tenNguoiDung={user} />}
 
-      {tab === "lichsu" && (
-        <TabLichSu
-          ngayXem={ngayXem}
-          danhSachNgay={danhSachNgay}
-          attendanceNgay={attendanceNgay}
-          onDoiNgay={doiNgay}
-          onSua={handleSuaDiemDanh}
-          onXoa={handleXoaNgay}
-        />
+      {/* NHÓM CÀI ĐẶT */}
+      {nhom === "caidat" && (
+        <div className="caidat-box">
+          <h3>⚙️ Cài đặt & Báo cáo</h3>
+          <div className="caidat-grid">
+            <button onClick={exportExcel} className="caidat-btn">
+              📊 Xuất Excel hôm nay
+            </button>
+            <button onClick={xoaDuLieu} className="caidat-btn danger">
+              🗑️ Xóa toàn bộ dữ liệu
+            </button>
+            <button onClick={handleLogout} className="caidat-btn">
+              🚪 Đăng xuất
+            </button>
+          </div>
+          <div className="caidat-info">
+            <p>
+              <b>Tài khoản:</b> {user}
+            </p>
+            <p>
+              <b>Tổng học sinh:</b> {total}
+            </p>
+            <p>
+              <b>Ngày hiện tại:</b> {today}
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );
 }
+
+/* =============================================================
+   CÁC COMPONENT CON — GIỮ NGUYÊN
+   ============================================================= */
 
 /* ---------- TAB ĐIỂM DANH ---------- */
 function TabDiemDanh({
