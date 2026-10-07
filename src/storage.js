@@ -1,5 +1,6 @@
 import { db } from "./firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
+import { students } from "./data";
 
 const GIO_VAO_SANG = 7;
 const PHUT_SANG = 0;
@@ -179,4 +180,78 @@ export async function xoaDiemDanhTheoNgay(studentId, date, buoi) {
   }
 
   await saveAttendance(data);
+}
+/**
+ * Lấy toàn bộ dữ liệu điểm danh trong 1 tháng
+ * @param thang "yyyy-mm"
+ * Trả về: { "2026-10-01": {...}, "2026-10-02": {...}, ... }
+ */
+export async function getAttendanceByMonth(thang) {
+  const all = await getAttendance();
+  const ketQua = {};
+  Object.keys(all).forEach((ngay) => {
+    if (ngay.startsWith(thang)) {
+      ketQua[ngay] = all[ngay];
+    }
+  });
+  return ketQua;
+}
+
+/**
+ * Tính thống kê cho tất cả học sinh trong 1 tháng
+ * @param thang "yyyy-mm"
+ */
+export async function tinhThongKeThang(thang) {
+  const dataThang = await getAttendanceByMonth(thang);
+  const dsNgay = Object.keys(dataThang).sort();
+
+  // Khởi tạo thống kê cho từng em
+  const thongKe = {};
+  students.forEach((s) => {
+    thongKe[s.id] = {
+      id: s.id,
+      name: s.name,
+      dungGio: 0,
+      diTre: 0,
+      vang: 0,
+      tongBuoi: 0,
+    };
+  });
+
+  // Đếm
+  dsNgay.forEach((ngay) => {
+    const dataNgay = dataThang[ngay];
+    students.forEach((s) => {
+      const hs = dataNgay[s.id] || {};
+      const sang = hs.sang;
+      const chieu = hs.chieu;
+
+      // Đếm buổi sáng
+      if (sang) {
+        thongKe[s.id].tongBuoi++;
+        if (sang.status === "Đúng giờ") thongKe[s.id].dungGio++;
+        else if (sang.status === "Đi trễ") thongKe[s.id].diTre++;
+      } else {
+        thongKe[s.id].vang++;
+        thongKe[s.id].tongBuoi++;
+      }
+
+      // Đếm buổi chiều
+      if (chieu) {
+        thongKe[s.id].tongBuoi++;
+        if (chieu.status === "Đúng giờ") thongKe[s.id].dungGio++;
+        else if (chieu.status === "Đi trễ") thongKe[s.id].diTre++;
+      } else {
+        thongKe[s.id].vang++;
+        thongKe[s.id].tongBuoi++;
+      }
+    });
+  });
+
+  return {
+    thang,
+    soNgay: dsNgay.length,
+    dsNgay,
+    thongKe: Object.values(thongKe),
+  };
 }
