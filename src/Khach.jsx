@@ -2,8 +2,11 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { students } from "./data";
 import { getAttendance } from "./storage";
+import News from "./News";
+import "./App.css";
 
 export default function Khach() {
+  const [tab, setTab] = useState("bang");
   const [attendance, setAttendance] = useState({});
   const [today, setToday] = useState("");
   const [buoiDangChon, setBuoiDangChon] = useState("sang");
@@ -37,32 +40,53 @@ export default function Khach() {
       </div>
 
       <p style={{ background: "#dbeafe", padding: 12, borderRadius: 8 }}>
-        👋 Trang này để <b>xem bảng điểm danh</b>. Để tự điểm danh, học sinh cần
-        giáo viên mở camera chấm tại lớp.
+        👋 Trang này để <b>xem bảng điểm danh</b> và <b>bản tin lớp</b>. Học
+        sinh có thể đăng tin — tin sẽ chờ giáo viên duyệt.
       </p>
 
-      <div className="chon-buoi">
-        <span>Chọn buổi:</span>
+      <div className="tabs">
         <button
-          className={buoiDangChon === "sang" ? "active" : ""}
-          onClick={() => setBuoiDangChon("sang")}
+          className={tab === "bang" ? "active" : ""}
+          onClick={() => setTab("bang")}
         >
-          🌅 Sáng (7h00 — trễ sau 7h45)
+          📋 Xem điểm danh
         </button>
         <button
-          className={buoiDangChon === "chieu" ? "active" : ""}
-          onClick={() => setBuoiDangChon("chieu")}
+          className={tab === "news" ? "active" : ""}
+          onClick={() => setTab("news")}
         >
-          🌆 Chiều (13h30 — trễ sau 14h15)
+          📰 Bản tin lớp
         </button>
       </div>
 
-      <TabBangKhach
-        attendance={attendance}
-        today={today}
-        total={total}
-        buoi={buoiDangChon}
-      />
+      {tab === "bang" && (
+        <>
+          <div className="chon-buoi">
+            <span>Chọn buổi:</span>
+            <button
+              className={buoiDangChon === "sang" ? "active" : ""}
+              onClick={() => setBuoiDangChon("sang")}
+            >
+              🌅 Sáng (7h00 — trễ sau 7h45)
+            </button>
+            <button
+              className={buoiDangChon === "chieu" ? "active" : ""}
+              onClick={() => setBuoiDangChon("chieu")}
+            >
+              🌆 Chiều (13h30 — trễ sau 14h15)
+            </button>
+          </div>
+
+          <TabBangKhach
+            attendance={attendance}
+            today={today}
+            total={total}
+            buoi={buoiDangChon}
+          />
+        </>
+      )}
+
+      {tab === "news" && <News laGiaoVien={false} tenNguoiDung="" />}
     </div>
   );
 }

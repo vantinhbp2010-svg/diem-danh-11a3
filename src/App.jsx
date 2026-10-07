@@ -10,6 +10,7 @@ import {
 } from "./storage";
 import { getQRs, saveQR, deleteQR, findStudentByQR } from "./qrStorage";
 import { logout, getUser } from "./auth";
+import News from "./News";
 import "./App.css";
 
 export default function App() {
@@ -208,6 +209,12 @@ export default function App() {
         >
           🧑 Đăng ký mặt
         </button>
+                <button
+          className={tab === "news" ? "active" : ""}
+          onClick={() => setTab("news")}
+        >
+          📰 Bản tin
+        </button>
         <button onClick={exportExcel}>📊 Xuất Excel</button>
         <button onClick={xoaDuLieu} style={{ background: "#e74c3c" }}>
           🗑️ Xóa tất cả
@@ -268,6 +275,7 @@ export default function App() {
 
       {tab === "dangkyqr" && <TabDangKyQR />}
       {tab === "dangky" && <TabDangKyMat />}
+            {tab === "news" && <News laGiaoVien={true} tenNguoiDung={user} />}
     </div>
   );
 }
