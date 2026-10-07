@@ -1,36 +1,36 @@
-const KEY = "qr_cccd_11A3";
+import { db } from "./firebase";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
-export function getQRs() {
-  const raw = localStorage.getItem(KEY);
-  return raw ? JSON.parse(raw) : {};
+const DOC_REF = doc(db, "diemdanh", "qr");
+
+export async function getQRs() {
+  const snap = await getDoc(DOC_REF);
+  return snap.exists() ? snap.data().data || {} : {};
 }
 
-export function saveQR(studentId, qrText) {
-  const data = getQRs();
+async function saveQRs(data) {
+  await setDoc(DOC_REF, { data });
+}
+
+export async function saveQR(studentId, qrText) {
+  const data = await getQRs();
   data[studentId] = qrText;
-  localStorage.setItem(KEY, JSON.stringify(data));
+  await saveQRs(data);
 }
 
-export function deleteQR(studentId) {
-  const data = getQRs();
+export async function deleteQR(studentId) {
+  const data = await getQRs();
   delete data[studentId];
-  localStorage.setItem(KEY, JSON.stringify(data));
+  await saveQRs(data);
 }
 
-/**
- * Tìm học sinh theo QR đã quét.
- * So khớp linh hoạt: nếu chuỗi quét được dài hơn
- * (do QR CCCD chứa nhiều thông tin), thì so khớp phần đầu.
- */
-export function findStudentByQR(qrText) {
-  const data = getQRs();
+export async function findStudentByQR(qrText) {
+  const data = await getQRs();
   const cleaned = qrText.trim();
 
-  // 1. Khớp chính xác
   let found = Object.keys(data).find((id) => data[id] === cleaned);
   if (found) return found;
 
-  // 2. Khớp mờ: chuỗi lưu là 1 phần của chuỗi quét
   found = Object.keys(data).find((id) => {
     const saved = data[id];
     if (!saved || saved.length < 6) return false;
@@ -38,7 +38,6 @@ export function findStudentByQR(qrText) {
   });
   if (found) return found;
 
-  // 3. Trích số CCCD (9 hoặc 12 số) từ chuỗi quét rồi so
   const match = cleaned.match(/\d{9,12}/);
   if (match) {
     const cccd = match[0];

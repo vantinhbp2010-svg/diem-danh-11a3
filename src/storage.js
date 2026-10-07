@@ -1,28 +1,33 @@
-const KEY = "diemdanh_10A1";
+import { db } from "./firebase";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
-// Giờ vào lớp 2 buổi
-const SANG_GIO = 7;      // 7h00
-const SANG_PHUT = 0;
-const SANG_TRE_TOI_DA = 45;
+const GIO_VAO_SANG = 7;
+const PHUT_SANG = 0;
+const TRE_SANG = 45;
 
-const CHIEU_GIO = 13;    // 13h30
-const CHIEU_PHUT = 30;
-const CHIEU_TRE_TOI_DA = 45;
+const GIO_VAO_CHIEU = 13;
+const PHUT_CHIEU = 30;
+const TRE_CHIEU = 45;
 
-export function getAttendance() {
-  const raw = localStorage.getItem(KEY);
-  return raw ? JSON.parse(raw) : {};
-}
-
-export function saveAttendance(data) {
-  localStorage.setItem(KEY, JSON.stringify(data));
+/**
+ * Lấy toàn bộ dữ liệu điểm danh
+ */
+export async function getAttendance() {
+  const ref = doc(db, "diemdanh", "all");
+  const snap = await getDoc(ref);
+  return snap.exists() ? snap.data().data || {} : {};
 }
 
 /**
- * Tính trạng thái theo buổi.
- * @param timeStr "hh:mm"
- * @param buoi "sang" | "chieu"
- * @returns "Đúng giờ" | "Đi trễ" | "Vắng"
+ * Lưu toàn bộ dữ liệu điểm danh
+ */
+export async function saveAttendance(data) {
+  const ref = doc(db, "diemdanh", "all");
+  await setDoc(ref, { data });
+}
+
+/**
+ * Tính trạng thái theo giờ
  */
 export function getStatusByTime(timeStr, buoi) {
   const [h, m] = timeStr.split(":").map(Number);
@@ -30,11 +35,11 @@ export function getStatusByTime(timeStr, buoi) {
 
   const gioVaoPhut =
     buoi === "sang"
-      ? SANG_GIO * 60 + SANG_PHUT
-      : CHIEU_GIO * 60 + CHIEU_PHUT;
+      ? GIO_VAO_SANG * 60 + PHUT_SANG
+      : GIO_VAO_CHIEU * 60 + PHUT_CHIEU;
 
   const hanTrePhut =
-    gioVaoPhut + (buoi === "sang" ? SANG_TRE_TOI_DA : CHIEU_TRE_TOI_DA);
+    gioVaoPhut + (buoi === "sang" ? TRE_SANG : TRE_CHIEU);
 
   if (tongPhut <= gioVaoPhut) return "Đúng giờ";
   if (tongPhut <= hanTrePhut) return "Đi trễ";
@@ -42,13 +47,11 @@ export function getStatusByTime(timeStr, buoi) {
 }
 
 /**
- * Điểm danh học sinh cho buổi cụ thể.
- * @param studentId mã học sinh
- * @param buoi "sang" | "chieu"
+ * Điểm danh 1 học sinh
  */
-export function markAttendance(studentId, buoi) {
+export async function markAttendance(studentId, buoi) {
   const today = new Date().toISOString().slice(0, 10);
-  const data = getAttendance();
+  const data = await getAttendance();
   if (!data[today]) data[today] = {};
   if (!data[today][studentId]) data[today][studentId] = {};
 
@@ -62,30 +65,29 @@ export function markAttendance(studentId, buoi) {
   }
 
   const now = new Date();
-  const time = now.toTimeString().slice(0, 5); // hh:mm
+  const time = now.toTimeString().slice(0, 5);
   const status = getStatusByTime(time, buoi);
 
   if (status === "Vắng") {
     const han = buoi === "sang" ? "7h45" : "14h15";
     return {
       ok: false,
-      message: `Đã quá ${han} — học sinh này tính là VẮNG, không điểm danh được.`,
+      message: `Đã quá ${han} — tính là VẮNG, không điểm danh được.`,
     };
   }
 
   data[today][studentId][buoi] = { time, status };
-  saveAttendance(data);
+  await saveAttendance(data);
 
   return { ok: true, time, status };
 }
+
 /**
- * Xóa điểm danh của 1 học sinh trong ngày hôm nay.
- * @param studentId mã học sinh
- * @param buoi "sang" | "chieu" — nếu không truyền, xóa cả 2 buổi
+ * Xóa điểm danh 1 học sinh
  */
-export function xoaDiemDanh(studentId, buoi) {
+export async function xoaDiemDanh(studentId, buoi) {
   const today = new Date().toISOString().slice(0, 10);
-  const data = getAttendance();
+  const data = await getAttendance();
   if (!data[today] || !data[today][studentId]) return;
 
   if (buoi) {
@@ -94,10 +96,38 @@ export function xoaDiemDanh(studentId, buoi) {
     delete data[today][studentId];
   }
 
-  // Nếu học sinh không còn buổi nào → xóa luôn key
   if (Object.keys(data[today][studentId] || {}).length === 0) {
     delete data[today][studentId];
   }
 
-  saveAttendance(data);
+  await saveAttendance(data);
+}
+/**
+ * Xóa TẤT CẢ dữ liệu của 1 học sinh
+ * (điểm danh + khuôn mặt + QR CCCD)
+ */
+export async function xoaTatCaCuaHocSinh(studentId) {
+  // 1. Xóa điểm danh
+  const today = new Date().toISOString().slice(0, 10);
+  const data = await getAttendance();
+  if (data[today] && data[today][studentId]) {
+    delete data[today][studentId];
+  }
+  await saveAttendance(data);
+
+  // 2. Xóa khuôn mặt
+  try {
+    const { clearFaces } = await import("./faceStorage");
+    await clearFaces(studentId);
+  } catch (e) {
+    console.warn("Lỗi xóa mặt:", e);
+  }
+
+  // 3. Xóa QR CCCD
+  try {
+    const { deleteQR } = await import("./qrStorage");
+    await deleteQR(studentId);
+  } catch (e) {
+    console.warn("Lỗi xóa QR:", e);
+  }
 }

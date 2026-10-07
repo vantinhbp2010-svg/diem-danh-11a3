@@ -11,9 +11,19 @@ export default function Khach() {
   useEffect(() => {
     const d = new Date().toISOString().slice(0, 10);
     setToday(d);
-    const data = getAttendance();
-    setAttendance(data[d] || {});
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function loadData() {
+    try {
+      const data = await getAttendance();
+      const d = new Date().toISOString().slice(0, 10);
+      setAttendance(data[d] || {});
+    } catch (err) {
+      console.error("Lỗi tải dữ liệu:", err);
+    }
+  }
 
   const total = students.length;
 
