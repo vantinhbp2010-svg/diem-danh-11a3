@@ -201,9 +201,22 @@ export async function getAttendanceByMonth(thang) {
  * Tính thống kê cho tất cả học sinh trong 1 tháng
  * @param thang "yyyy-mm"
  */
+/**
+ * Tính thống kê cho tất cả học sinh trong 1 tháng
+ * @param thang "yyyy-mm"
+ * @param students Danh sách học sinh
+ * Quy tắc: Mỗi ngày trong tháng = 2 buổi (sáng + chiều)
+ *          Không có dữ liệu → tính là VẮNG
+ */
 export async function tinhThongKeThang(thang, students) {
   const dataThang = await getAttendanceByMonth(thang);
-  const dsNgay = Object.keys(dataThang).sort();
+
+  // Lấy tất cả các ngày có dữ liệu
+  const dsNgayCoDuLieu = Object.keys(dataThang).sort();
+
+  // Đếm số ngày trong tháng
+  const [year, month] = thang.split("-").map(Number);
+  const soNgayTrongThang = new Date(year, month, 0).getDate();
 
   // Khởi tạo thống kê cho từng em
   const thongKe = {};
@@ -218,40 +231,41 @@ export async function tinhThongKeThang(thang, students) {
     };
   });
 
-  // Đếm
-  dsNgay.forEach((ngay) => {
+  // Đếm theo các ngày CÓ DỮ LIỆU
+  dsNgayCoDuLieu.forEach((ngay) => {
     const dataNgay = dataThang[ngay];
     students.forEach((s) => {
       const hs = dataNgay[s.id] || {};
-      const sang = hs.sang;
-      const chieu = hs.chieu;
 
-      // Đếm buổi sáng
+      // Buổi sáng
+      const sang = hs.sang;
+      thongKe[s.id].tongBuoi++;
       if (sang) {
-        thongKe[s.id].tongBuoi++;
         if (sang.status === "Đúng giờ") thongKe[s.id].dungGio++;
         else if (sang.status === "Đi trễ") thongKe[s.id].diTre++;
+        else thongKe[s.id].vang++;
       } else {
         thongKe[s.id].vang++;
-        thongKe[s.id].tongBuoi++;
       }
 
-      // Đếm buổi chiều
+      // Buổi chiều
+      const chieu = hs.chieu;
+      thongKe[s.id].tongBuoi++;
       if (chieu) {
-        thongKe[s.id].tongBuoi++;
         if (chieu.status === "Đúng giờ") thongKe[s.id].dungGio++;
         else if (chieu.status === "Đi trễ") thongKe[s.id].diTre++;
+        else thongKe[s.id].vang++;
       } else {
         thongKe[s.id].vang++;
-        thongKe[s.id].tongBuoi++;
       }
     });
   });
 
   return {
     thang,
-    soNgay: dsNgay.length,
-    dsNgay,
+    soNgay: dsNgayCoDuLieu.length,
+    soNgayTrongThang,
+    dsNgay: dsNgayCoDuLieu,
     thongKe: Object.values(thongKe),
   };
 }
