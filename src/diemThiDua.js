@@ -1,4 +1,8 @@
-// Danh sách vi phạm (theo Quy định tính điểm thi đua 2026-2027)
+// ============ NGÀY KHAI GIẢNG ============
+// Sửa tại đây nếu năm sau khai giảng ngày khác
+const NGAY_KHAI_GIANG = new Date("2026-09-05");
+
+// ============ DANH SÁCH VI PHẠM ============
 export const DANH_SACH_VI_PHAM = [
   { ma: "VP01", ten: "Vô lễ với giáo viên, CNV", diem: -30 },
   { ma: "VP02", ten: "Tự sửa chữa số đầu bài", diem: -20 },
@@ -43,48 +47,72 @@ export const DANH_SACH_KHEN_THUONG = [
 // Điểm khởi đầu mỗi tuần
 export const DIEM_BAN_DAU = 100;
 
-// Xếp loại
+// ============ XẾP LOẠI ============
 export function xepLoai(diem) {
   if (diem >= 90) return { ten: "Tốt", mau: "#10b981" };
   if (diem >= 80) return { ten: "Đạt", mau: "#f59e0b" };
   return { ten: "Chưa đạt", mau: "#dc2626" };
 }
 
-// Lấy mã tuần ISO — ví dụ: "2026-W41"
-export function layTuanISO(date) {
+// ============ TÍNH TUẦN HỌC ============
+/**
+ * Tính tuần học kể từ ngày khai giảng
+ * Trả về mã tuần dạng "2026-T01", "2026-T02", ...
+ */
+export function layTuanHoc(date = new Date()) {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
-  const week1 = new Date(d.getFullYear(), 0, 4);
-  const tuan =
-    1 +
-    Math.round(
-      ((d.getTime() - week1.getTime()) / 86400000 -
-        3 +
-        ((week1.getDay() + 6) % 7)) /
-        7
-    );
-  return `${d.getFullYear()}-W${String(tuan).padStart(2, "0")}`;
+
+  const kg = new Date(NGAY_KHAI_GIANG);
+  kg.setHours(0, 0, 0, 0);
+
+  // Nếu ngày trước khai giảng → tuần 0
+  if (d < kg) {
+    return `${d.getFullYear()}-T00`;
+  }
+
+  // Số ngày kể từ khai giảng
+  const soNgay = Math.floor((d - kg) / (1000 * 60 * 60 * 24));
+
+  // Số tuần (tuần 1 = 7 ngày đầu tiên)
+  const tuan = Math.floor(soNgay / 7) + 1;
+
+  return `${d.getFullYear()}-T${String(tuan).padStart(2, "0")}`;
 }
 
-// Hiển thị tên tuần đẹp
-export function tenTuan(tuanISO) {
-  const [year, weekPart] = tuanISO.split("-W");
-  return `Tuần ${parseInt(weekPart)} — Năm ${year}`;
+/**
+ * Hiển thị tên tuần đẹp
+ * "2026-T06" → "Tuần 6 — Năm học 2026-2027"
+ */
+export function tenTuanHoc(tuanCode) {
+  if (!tuanCode) return "";
+  const [year, tuanPart] = tuanCode.split("-T");
+  const tuan = parseInt(tuanPart);
+  const namHoc = `${year}-${parseInt(year) + 1}`;
+
+  if (tuan === 0) {
+    return `Trước khai giảng — Năm học ${namHoc}`;
+  }
+
+  return `Tuần ${tuan} — Năm học ${namHoc}`;
 }
 
-// Lấy khoảng ngày của tuần
-export function khoangNgayTuan(tuanISO) {
-  const [year, weekPart] = tuanISO.split("-W");
-  const week = parseInt(weekPart);
-  const simple = new Date(year, 0, 1 + (week - 1) * 7);
-  const dow = simple.getDay();
-  const ISOweekStart = simple;
-  if (dow <= 4) ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
-  else ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
+/**
+ * Lấy khoảng ngày của tuần học
+ * "2026-T06" → "05/10 — 11/10"
+ */
+export function khoangNgayTuanHoc(tuanCode) {
+  if (!tuanCode) return "";
+  const [year, tuanPart] = tuanCode.split("-T");
+  const tuan = parseInt(tuanPart);
 
-  const start = new Date(ISOweekStart);
-  const end = new Date(ISOweekStart);
+  if (tuan === 0) return "Trước khai giảng";
+
+  const kg = new Date(NGAY_KHAI_GIANG);
+  const start = new Date(kg);
+  start.setDate(start.getDate() + (tuan - 1) * 7);
+
+  const end = new Date(start);
   end.setDate(end.getDate() + 6);
 
   const fmt = (d) =>
@@ -94,3 +122,29 @@ export function khoangNgayTuan(tuanISO) {
 
   return `${fmt(start)} — ${fmt(end)}`;
 }
+
+/**
+ * Lấy ngày bắt đầu và kết thúc của tuần học
+ */
+export function layKhoangNgayTuanHoc(tuanCode) {
+  if (!tuanCode) return { start: null, end: null };
+  const [year, tuanPart] = tuanCode.split("-T");
+  const tuan = parseInt(tuanPart);
+
+  if (tuan === 0) return { start: null, end: null };
+
+  const kg = new Date(NGAY_KHAI_GIANG);
+  const start = new Date(kg);
+  start.setDate(start.getDate() + (tuan - 1) * 7);
+
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
+
+  return { start, end };
+}
+
+// Alias để tương thích với code cũ (không cần đổi import)
+export const layTuanISO = layTuanHoc;
+export const tenTuan = tenTuanHoc;
+export const khoangNgayTuan = khoangNgayTuanHoc;
