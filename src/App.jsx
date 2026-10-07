@@ -825,3 +825,206 @@ function TabDangKyMat() {
     </>
   );
 }
+/* ---------- TAB ĐĂNG KÝ QR CCCD ---------- */
+function TabDangKyQR() {
+  const [selected, setSelected] = useState(students[0].id);
+  const [status, setStatus] = useState("");
+  const [scanning, setScanning] = useState(false);
+  const [qrList, setQrList] = useState({});
+  const [manual, setManual] = useState("");
+  const scannerRef = useRef(null);
+
+  useEffect(() => {
+    loadQRs();
+  }, []);
+
+  async function loadQRs() {
+    try {
+      const data = await getQRs();
+      setQrList(data);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function startScan() {
+    setStatus("");
+    const { Html5Qrcode } = await import("html5-qrcode");
+    await new Promise((r) => setTimeout(r, 200));
+
+    const scanner = new Html5Qrcode("qr-reader-dangky");
+    scannerRef.current = scanner;
+
+    try {
+      await scanner.start(
+        { facingMode: "environment" },
+        {
+          fps: 20,
+          qrbox: { width: 350, height: 350 },
+          aspectRatio: 1.0,
+          disableFlip: false,
+        },
+        async (decodedText) => {
+          await saveQR(selected, decodedText);
+          const hs = students.find((s) => s.id === selected);
+          setStatus(`✅ Đã lưu QR cho: ${hs.name}`);
+          await loadQRs();
+          stopScan();
+        },
+        () => {}
+      );
+      setScanning(true);
+    } catch (err) {
+      setStatus("Không mở được camera: " + err.message);
+    }
+  }
+
+  async function stopScan() {
+    if (scannerRef.current) {
+      try {
+        await scannerRef.current.stop();
+        scannerRef.current.clear();
+      } catch (e) {}
+      scannerRef.current = null;
+    }
+    setScanning(false);
+  }
+
+  async function xoaQR(id) {
+    const hs = students.find((s) => s.id === id);
+    if (!window.confirm(`Xóa QR của ${hs.name}?`)) return;
+    await deleteQR(id);
+    await loadQRs();
+    setStatus(`🗑️ Đã xóa QR của ${hs.name}`);
+  }
+
+  async function luuThuCong() {
+    if (!manual.trim()) {
+      setStatus("❌ Chưa nhập gì!");
+      return;
+    }
+    await saveQR(selected, manual.trim());
+    const hs = students.find((s) => s.id === selected);
+    setStatus(`✅ Đã lưu thủ công cho: ${hs.name}`);
+    await loadQRs();
+    setManual("");
+  }
+
+  const hs = students.find((s) => s.id === selected);
+  const daDangKy = Object.keys(qrList).length;
+
+  return (
+    <>
+      <p>
+        Đã đăng ký: <b>{daDangKy}</b> / {students.length} học sinh
+      </p>
+      <p style={{ background: "#fef3c7", padding: 10, borderRadius: 8 }}>
+        💡 <b>Mẹo quét CCCD:</b> Đưa cách camera 10–15cm, giữ yên 2–3 giây,
+        nghiêng nhẹ tránh hologram. Nếu không được → dùng nhập tay bên dưới.
+      </p>
+
+      <select
+        value={selected}
+        onChange={(e) => setSelected(e.target.value)}
+        style={{ padding: 8, fontSize: 16, marginBottom: 10 }}
+      >
+        {students.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.id} — {s.name}
+            {qrList[s.id] ? " ✅" : ""}
+          </option>
+        ))}
+      </select>
+
+      <div
+        id="qr-reader-dangky"
+        style={{
+          width: 500,
+          margin: "15px 0",
+          borderRadius: 12,
+          overflow: "hidden",
+        }}
+      ></div>
+
+      {!scanning ? (
+        <button onClick={startScan}>📷 Bắt đầu quét QR CCCD</button>
+      ) : (
+        <button onClick={stopScan} style={{ background: "#e74c3c" }}>
+          ⏹ Dừng
+        </button>
+      )}
+
+      <div
+        style={{
+          marginTop: 20,
+          padding: 15,
+          background: "#f3f4f6",
+          borderRadius: 8,
+        }}
+      >
+        <b>⌨️ Nhập tay (khi QR không quét được):</b>
+        <div
+          style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}
+        >
+          <input
+            type="text"
+            placeholder="Dán nội dung QR hoặc số CCCD"
+            value={manual}
+            onChange={(e) => setManual(e.target.value)}
+            style={{
+              flex: 1,
+              minWidth: 200,
+              padding: "10px 14px",
+              fontSize: 15,
+              borderRadius: 8,
+              border: "2px solid #e5e7eb",
+            }}
+          />
+          <button onClick={luuThuCong}>💾 Lưu</button>
+        </div>
+      </div>
+
+      {qrList[selected] && (
+        <button
+          onClick={() => xoaQR(selected)}
+          style={{ background: "#e74c3c", marginTop: 15 }}
+        >
+          🗑️ Xóa QR của {hs.name}
+        </button>
+      )}
+
+      {status && <div className="msg">{status}</div>}
+
+      <h3 style={{ marginTop: 30 }}>Danh sách đã đăng ký</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>STT</th>
+            <th>Họ tên</th>
+            <th>Trạng thái</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {students.map((s, i) => (
+            <tr key={s.id} className={qrList[s.id] ? "dunggio" : "vang"}>
+              <td>{i + 1}</td>
+              <td>{s.name}</td>
+              <td>{qrList[s.id] ? "✅ Đã có QR" : "❌ Chưa"}</td>
+              <td>
+                {qrList[s.id] && (
+                  <button
+                    onClick={() => xoaQR(s.id)}
+                    style={{ background: "#e74c3c" }}
+                  >
+                    🗑️
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  );
+}

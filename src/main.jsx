@@ -6,6 +6,7 @@ import App from "./App.jsx";
 import Login from "./Login.jsx";
 import Khach from "./Khach.jsx";
 import ProtectedRoute from "./ProtectedRoute.jsx";
+import ChatBot from "./ChatBot.jsx";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
@@ -13,13 +14,12 @@ createRoot(document.getElementById("root")).render(
       <Routes>
         <Route path="/khach" element={<Khach />} />
         <Route path="/login" element={<Login />} />
-
         <Route element={<ProtectedRoute />}>
           <Route path="/diemdanhhocsinhlop11A3" element={<App />} />
         </Route>
-
         <Route path="*" element={<Navigate to="/khach" replace />} />
       </Routes>
+      <ChatBot />
     </BrowserRouter>
   </StrictMode>
 );
