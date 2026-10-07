@@ -1,14 +1,10 @@
-import { GoogleGenAI } from "@google/genai";
 import { NOI_QUY } from "./noidung";
 
-const API_KEY = "AIzaSyBUbibJceDLEiwf6fcQ1AlrROlKNxLeUPc";
-const ai = new GoogleGenAI({ apiKey: API_KEY });
-
-// Lịch sử để bot nhớ ngữ cảnh — dùng previous_interaction_id của SDK
-let previousInteractionId = null;
+// Lịch sử trò chuyện
+let history = [];
 
 export function resetHistory() {
-  previousInteractionId = null;
+  history = [];
 }
 
 const SYSTEM_PROMPT = `Bạn là trợ lý AI của Trường THPT Bình Long, chuyên trả lời các câu hỏi về NỘI QUY HỌC SINH năm học 2026-2027.
@@ -27,35 +23,40 @@ ${NOI_QUY}`;
 
 export async function hoiChatBot(cauHoi) {
   try {
-    const params = {
-      model: "gemini-3.1-flash-lite",
-      input: cauHoi,
-      system_instruction: SYSTEM_PROMPT,
-    };
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        cauHoi,
+        lichSu: history,
+        systemPrompt: SYSTEM_PROMPT,
+      }),
+    });
 
-    if (previousInteractionId) {
-      params.previous_interaction_id = previousInteractionId;
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Lỗi server");
     }
 
-    const interaction = await ai.interactions.create(params);
+    const traLoi = data.traLoi;
 
-    previousInteractionId = interaction.id;
+    history.push({ role: "user", text: cauHoi });
+    history.push({ role: "model", text: traLoi });
 
-    return interaction.output_text || "❌ Không có phản hồi từ AI.";
+    if (history.length > 20) {
+      history = history.slice(-20);
+    }
+
+    return traLoi;
   } catch (err) {
-    console.error("Lỗi Gemini:", err);
+    console.error("Lỗi chatbot:", err);
 
-    // Reset lịch sử nếu interaction cũ bị lỗi
-    previousInteractionId = null;
-
-    if (err.message && err.message.includes("API key")) {
-      return "❌ API key chưa đúng. Vui lòng báo giáo viên kiểm tra lại.";
-    }
-    if (err.message && err.message.includes("quota")) {
+    if (err.message.includes("quota")) {
       return "⏳ Chatbot đang quá tải. Em đợi 1 phút rồi hỏi lại nhé!";
     }
-    if (err.message && err.message.includes("404")) {
-      return "❌ Model AI chưa khả dụng. Vui lòng báo giáo viên.";
+    if (err.message.includes("GEMINI_API_KEY")) {
+      return "❌ Chatbot chưa cấu hình. Vui lòng báo giáo viên.";
     }
     return "❌ Có lỗi xảy ra: " + err.message;
   }
