@@ -26,8 +26,7 @@ export default function Login() {
         <div className="login-logo">📋</div>
         <h1>Điểm danh lớp 11A3</h1>
         <p className="login-tagline">
-          Hệ thống điểm danh thông minh bằng <b>khuôn mặt</b> và{" "}
-          <b>QR CCCD</b>
+          Hệ thống điểm danh thông minh bằng <b>khuôn mặt</b>
         </p>
 
         <div className="login-features">
@@ -36,14 +35,6 @@ export default function Login() {
             <div>
               <b>Nhận diện khuôn mặt</b>
               <p>Tự động chấm công khi học sinh vào lớp</p>
-            </div>
-          </div>
-
-          <div className="feature-item">
-            <span className="feature-icon">🪪</span>
-            <div>
-              <b>Quét QR CCCD</b>
-              <p>Phương án dự phòng khi mặt khó nhận diện</p>
             </div>
           </div>
 

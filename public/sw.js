@@ -1,4 +1,4 @@
-const CACHE_NAME = "diem-danh-11a3-v1";
+const CACHE_NAME = "diem-danh-11a3-v2";
 const URLS_TO_CACHE = ["/", "/khach", "/login", "/models/tiny_face_detector_model-weights_manifest.json"];
 
 // Cài đặt

@@ -19,17 +19,24 @@ import {
 import "./App.css";
 
 export default function TabThiDua() {
-const { students } = useStudents();
+  const { students } = useStudents();
   const [tuan, setTuan] = useState(layTuanISO(new Date()));
-  const [tab, setTab] = useState("lop"); // "lop" | "canhan" | "xephang"
+  const [tab, setTab] = useState("lop");
   const [duLieu, setDuLieu] = useState(null);
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const [selected, setSelected] = useState(students[0].id);
-  const [modal, setModal] = useState(null); // { loai: "viPham"|"khenThuong", doiTuong: "lop"|"caNhan" }
+  const [selected, setSelected] = useState(students[0]?.id || "");
+  const [modal, setModal] = useState(null);
   const [chonMa, setChonMa] = useState("");
   const [ghiChu, setGhiChu] = useState("");
+
+  useEffect(() => {
+    if (students.length > 0 && !students.find((s) => s.id === selected)) {
+      setSelected(students[0].id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [students]);
 
   useEffect(() => {
     loadData();
@@ -49,6 +56,24 @@ const { students } = useStudents();
     }
   }
 
+  // Chuyển tuần trước/sau
+  function chuyenTuan(delta) {
+    const parts = tuan.split("-W");
+    if (parts.length !== 2) return;
+
+    let tuanSo = parseInt(parts[1]);
+    const nam = parseInt(parts[0]);
+
+    tuanSo += delta;
+    if (tuanSo < 1) tuanSo = 1;
+
+    setTuan(`${nam}-W${String(tuanSo).padStart(2, "0")}`);
+  }
+
+  function veTuanHienTai() {
+    setTuan(layTuanISO(new Date()));
+  }
+
   async function handleThem() {
     if (!chonMa) {
       setMsg("❌ Chưa chọn loại");
@@ -58,10 +83,22 @@ const { students } = useStudents();
     let item = null;
     if (modal.loai === "viPham") {
       const vp = DANH_SACH_VI_PHAM.find((v) => v.ma === chonMa);
-      item = { ma: vp.ma, ten: vp.ten, diem: vp.diem, ngay: new Date().toISOString().slice(0, 10), ghiChu };
+      item = {
+        ma: vp.ma,
+        ten: vp.ten,
+        diem: vp.diem,
+        ngay: new Date().toISOString().slice(0, 10),
+        ghiChu,
+      };
     } else {
       const kt = DANH_SACH_KHEN_THUONG.find((k) => k.ma === chonMa);
-      item = { ma: kt.ma, ten: kt.ten, diem: kt.diem, ngay: new Date().toISOString().slice(0, 10), ghiChu };
+      item = {
+        ma: kt.ma,
+        ten: kt.ten,
+        diem: kt.diem,
+        ngay: new Date().toISOString().slice(0, 10),
+        ghiChu,
+      };
     }
 
     try {
@@ -96,10 +133,16 @@ const { students } = useStudents();
   }
 
   if (loading || !duLieu) {
-    return <p style={{ textAlign: "center", padding: 40 }}>⏳ Đang tải...</p>;
+    return (
+      <p style={{ textAlign: "center", padding: 40 }}>⏳ Đang tải...</p>
+    );
   }
 
-  const lopData = duLieu.lop || { diem: DIEM_BAN_DAU, viPham: [], khenThuong: [] };
+  const lopData = duLieu.lop || {
+    diem: DIEM_BAN_DAU,
+    viPham: [],
+    khenThuong: [],
+  };
   const lopXL = xepLoai(lopData.diem);
 
   const hsData = duLieu.caNhan?.[selected] || {
@@ -111,7 +154,6 @@ const { students } = useStudents();
 
   const hs = students.find((s) => s.id === selected);
 
-  // Bảng xếp hạng
   const bxh = students
     .map((s) => {
       const d = duLieu.caNhan?.[s.id];
@@ -125,16 +167,42 @@ const { students } = useStudents();
 
   return (
     <>
+      {/* THANH CHỌN TUẦN */}
       <div className="lichsu-toolbar">
-        <div className="lichsu-date-picker">
+        <div
+          className="lichsu-date-picker"
+          style={{ display: "flex", alignItems: "center", gap: 8 }}
+        >
           <label>📅 Tuần:</label>
-          <input
-            type="week"
-            value={tuan}
-            onChange={(e) => setTuan(e.target.value)}
-          />
+          <button
+            onClick={() => chuyenTuan(-1)}
+            style={{ background: "#3b82f6", padding: "8px 14px" }}
+          >
+            ← Tuần trước
+          </button>
+          <button
+            onClick={veTuanHienTai}
+            style={{
+              background: "#10b981",
+              padding: "8px 14px",
+            }}
+          >
+            Tuần hiện tại
+          </button>
+          <button
+            onClick={() => chuyenTuan(1)}
+            style={{ background: "#3b82f6", padding: "8px 14px" }}
+          >
+            Tuần sau →
+          </button>
         </div>
-        <div style={{ fontSize: 14, color: "#64748b" }}>
+        <div
+          style={{
+            fontSize: 15,
+            color: "#1e3a8a",
+            fontWeight: 700,
+          }}
+        >
           {tenTuan(tuan)} ({khoangNgayTuan(tuan)})
         </div>
       </div>
@@ -176,7 +244,7 @@ const { students } = useStudents();
             }}
           >
             <h3 style={{ margin: 0, textAlign: "center" }}>
-              🏫 Điểm thi đua lớp 11A3
+              🏫 Điểm thi đua lớp
             </h3>
             <p
               style={{
@@ -199,7 +267,13 @@ const { students } = useStudents();
             >
               Xếp loại: {lopXL.ten}
             </p>
-            <p style={{ textAlign: "center", color: "#64748b", fontSize: 13 }}>
+            <p
+              style={{
+                textAlign: "center",
+                color: "#64748b",
+                fontSize: 13,
+              }}
+            >
               Điểm chuẩn: {DIEM_BAN_DAU} / tuần
             </p>
           </div>
@@ -227,7 +301,13 @@ const { students } = useStudents();
 
           <h4>📋 Lịch sử vi phạm</h4>
           {lopData.viPham.length === 0 ? (
-            <p style={{ color: "#94a3b8", textAlign: "center", padding: 20 }}>
+            <p
+              style={{
+                color: "#94a3b8",
+                textAlign: "center",
+                padding: 20,
+              }}
+            >
               Không có vi phạm nào 🎉
             </p>
           ) : (
@@ -242,7 +322,11 @@ const { students } = useStudents();
                   </span>
                   <button
                     onClick={() => handleXoa("lop", i, "viPham")}
-                    style={{ background: "#e74c3c", padding: "3px 8px", fontSize: 12 }}
+                    style={{
+                      background: "#e74c3c",
+                      padding: "3px 8px",
+                      fontSize: 12,
+                    }}
                   >
                     🗑️
                   </button>
@@ -253,7 +337,13 @@ const { students } = useStudents();
 
           <h4>🏆 Lịch sử khen thưởng</h4>
           {lopData.khenThuong.length === 0 ? (
-            <p style={{ color: "#94a3b8", textAlign: "center", padding: 20 }}>
+            <p
+              style={{
+                color: "#94a3b8",
+                textAlign: "center",
+                padding: 20,
+              }}
+            >
               Chưa có khen thưởng
             </p>
           ) : (
@@ -268,7 +358,11 @@ const { students } = useStudents();
                   </span>
                   <button
                     onClick={() => handleXoa("lop", i, "khenThuong")}
-                    style={{ background: "#e74c3c", padding: "3px 8px", fontSize: 12 }}
+                    style={{
+                      background: "#e74c3c",
+                      padding: "3px 8px",
+                      fontSize: 12,
+                    }}
                   >
                     🗑️
                   </button>
@@ -285,7 +379,12 @@ const { students } = useStudents();
           <select
             value={selected}
             onChange={(e) => setSelected(e.target.value)}
-            style={{ padding: 10, fontSize: 16, width: "100%", marginBottom: 20 }}
+            style={{
+              padding: 10,
+              fontSize: 16,
+              width: "100%",
+              marginBottom: 20,
+            }}
           >
             {students.map((s, i) => (
               <option key={s.id} value={s.id}>
@@ -304,7 +403,9 @@ const { students } = useStudents();
               marginBottom: 20,
             }}
           >
-            <h3 style={{ margin: 0, textAlign: "center" }}>👤 {hs.name}</h3>
+            <h3 style={{ margin: 0, textAlign: "center" }}>
+              👤 {hs?.name}
+            </h3>
             <p
               style={{
                 fontSize: 48,
@@ -351,7 +452,13 @@ const { students } = useStudents();
 
           <h4>📋 Lịch sử vi phạm</h4>
           {hsData.viPham.length === 0 ? (
-            <p style={{ color: "#94a3b8", textAlign: "center", padding: 20 }}>
+            <p
+              style={{
+                color: "#94a3b8",
+                textAlign: "center",
+                padding: 20,
+              }}
+            >
               Không có vi phạm nào 🎉
             </p>
           ) : (
@@ -366,7 +473,11 @@ const { students } = useStudents();
                   </span>
                   <button
                     onClick={() => handleXoa("caNhan", i, "viPham")}
-                    style={{ background: "#e74c3c", padding: "3px 8px", fontSize: 12 }}
+                    style={{
+                      background: "#e74c3c",
+                      padding: "3px 8px",
+                      fontSize: 12,
+                    }}
                   >
                     🗑️
                   </button>
@@ -377,7 +488,13 @@ const { students } = useStudents();
 
           <h4>🏆 Lịch sử khen thưởng</h4>
           {hsData.khenThuong.length === 0 ? (
-            <p style={{ color: "#94a3b8", textAlign: "center", padding: 20 }}>
+            <p
+              style={{
+                color: "#94a3b8",
+                textAlign: "center",
+                padding: 20,
+              }}
+            >
               Chưa có khen thưởng
             </p>
           ) : (
@@ -392,7 +509,11 @@ const { students } = useStudents();
                   </span>
                   <button
                     onClick={() => handleXoa("caNhan", i, "khenThuong")}
-                    style={{ background: "#e74c3c", padding: "3px 8px", fontSize: 12 }}
+                    style={{
+                      background: "#e74c3c",
+                      padding: "3px 8px",
+                      fontSize: 12,
+                    }}
                   >
                     🗑️
                   </button>
@@ -468,13 +589,18 @@ const { students } = useStudents();
         <div className="modal-sua" onClick={() => setModal(null)}>
           <div className="modal-sua-box" onClick={(e) => e.stopPropagation()}>
             <h3>
-              {modal.loai === "viPham" ? "➖ Thêm vi phạm" : "➕ Thêm khen thưởng"}
+              {modal.loai === "viPham"
+                ? "➖ Thêm vi phạm"
+                : "➕ Thêm khen thưởng"}
               {modal.doiTuong === "lop" ? " cho lớp" : ` cho ${hs?.name}`}
             </h3>
 
             <div className="sua-group">
               <label>Chọn loại:</label>
-              <select value={chonMa} onChange={(e) => setChonMa(e.target.value)}>
+              <select
+                value={chonMa}
+                onChange={(e) => setChonMa(e.target.value)}
+              >
                 <option value="">-- Chọn --</option>
                 {(modal.loai === "viPham"
                   ? DANH_SACH_VI_PHAM
@@ -505,7 +631,10 @@ const { students } = useStudents();
               >
                 ❌ Hủy
               </button>
-              <button onClick={handleThem} style={{ background: "#10b981" }}>
+              <button
+                onClick={handleThem}
+                style={{ background: "#10b981" }}
+              >
                 ✅ Lưu
               </button>
             </div>

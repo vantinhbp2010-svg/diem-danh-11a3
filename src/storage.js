@@ -1,17 +1,11 @@
 import { db } from "./firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { students } from "./data";
-
-const GIO_VAO_SANG = 7;
-const PHUT_SANG = 0;
-const TRE_SANG = 45;
-
-const GIO_VAO_CHIEU = 13;
-const PHUT_CHIEU = 30;
-const TRE_CHIEU = 45;
+import { tinhTrangThai, tietDaHet, layTietDaKetThuc, TKB_SANG, TKB_CHIEU } from "./thoiKhoaBieu";
 
 /**
  * Lấy toàn bộ dữ liệu điểm danh
+ * Cấu trúc: { "2026-10-08": { "HS001": { "sang": { "tiet1": {...} }, "chieu": {...} } } }
  */
 export async function getAttendance() {
   const ref = doc(db, "diemdanh", "all");
@@ -19,122 +13,103 @@ export async function getAttendance() {
   return snap.exists() ? snap.data().data || {} : {};
 }
 
-/**
- * Lưu toàn bộ dữ liệu điểm danh
- */
 export async function saveAttendance(data) {
   const ref = doc(db, "diemdanh", "all");
   await setDoc(ref, { data });
 }
 
 /**
- * Tính trạng thái theo giờ
+ * Điểm danh 1 học sinh cho 1 tiết cụ thể
  */
-export function getStatusByTime(timeStr, buoi) {
-  const [h, m] = timeStr.split(":").map(Number);
-  const tongPhut = h * 60 + m;
-
-  const gioVaoPhut =
-    buoi === "sang"
-      ? GIO_VAO_SANG * 60 + PHUT_SANG
-      : GIO_VAO_CHIEU * 60 + PHUT_CHIEU;
-
-  const hanTrePhut =
-    gioVaoPhut + (buoi === "sang" ? TRE_SANG : TRE_CHIEU);
-
-  if (tongPhut <= gioVaoPhut) return "Đúng giờ";
-  if (tongPhut <= hanTrePhut) return "Đi trễ";
-  return "Vắng";
-}
-
-/**
- * Điểm danh 1 học sinh
- */
-export async function markAttendance(studentId, buoi) {
+export async function markAttendance(studentId, buoi, tiet) {
   const today = new Date().toISOString().slice(0, 10);
   const data = await getAttendance();
+
   if (!data[today]) data[today] = {};
   if (!data[today][studentId]) data[today][studentId] = {};
+  if (!data[today][studentId][buoi]) data[today][studentId][buoi] = {};
 
-  if (data[today][studentId][buoi]) {
+  const keyTiet = `tiet${tiet}`;
+
+  if (data[today][studentId][buoi][keyTiet]) {
     return {
       ok: false,
-      message: `Học sinh này đã điểm danh buổi ${
+      message: `Học sinh này đã điểm danh tiết ${tiet} buổi ${
         buoi === "sang" ? "sáng" : "chiều"
       } rồi!`,
     };
   }
 
   const now = new Date();
-  const time = now.toTimeString().slice(0, 5);
-  const status = getStatusByTime(time, buoi);
+  const gioQuet = now.toTimeString().slice(0, 5);
+  const kq = tinhTrangThai(buoi, tiet, gioQuet);
 
-  if (status === "Vắng") {
-    const han = buoi === "sang" ? "7h45" : "14h15";
-    return {
-      ok: false,
-      message: `Đã quá ${han} — tính là VẮNG, không điểm danh được.`,
-    };
-  }
+  data[today][studentId][buoi][keyTiet] = {
+    trangThai: kq.trangThai,
+    gioVao: gioQuet,
+    phutTre: kq.phutTre,
+    diemTru: kq.diemTru,
+  };
 
-  data[today][studentId][buoi] = { time, status };
   await saveAttendance(data);
 
-  return { ok: true, time, status };
+  return {
+    ok: true,
+    gioVao: gioQuet,
+    trangThai: kq.trangThai,
+    phutTre: kq.phutTre,
+    diemTru: kq.diemTru,
+  };
 }
 
 /**
- * Xóa điểm danh 1 học sinh
+ * Xóa điểm danh 1 học sinh cho 1 tiết
  */
-export async function xoaDiemDanh(studentId, buoi) {
+export async function xoaDiemDanh(studentId, buoi, tiet) {
   const today = new Date().toISOString().slice(0, 10);
   const data = await getAttendance();
-  if (!data[today] || !data[today][studentId]) return;
 
-  if (buoi) {
-    delete data[today][studentId][buoi];
-  } else {
-    delete data[today][studentId];
+  if (!data[today] || !data[today][studentId] || !data[today][studentId][buoi]) {
+    return;
   }
 
-  if (Object.keys(data[today][studentId] || {}).length === 0) {
+  const keyTiet = `tiet${tiet}`;
+  delete data[today][studentId][buoi][keyTiet];
+
+  if (Object.keys(data[today][studentId][buoi]).length === 0) {
+    delete data[today][studentId][buoi];
+  }
+
+  if (Object.keys(data[today][studentId]).length === 0) {
     delete data[today][studentId];
   }
 
   await saveAttendance(data);
 }
+
 /**
- * Xóa TẤT CẢ dữ liệu của 1 học sinh
- * (điểm danh + khuôn mặt + QR CCCD)
+ * Xóa TẤT CẢ dữ liệu của 1 học sinh (điểm danh + khuôn mặt)
  */
 export async function xoaTatCaCuaHocSinh(studentId) {
-  // 1. Xóa điểm danh
   const today = new Date().toISOString().slice(0, 10);
   const data = await getAttendance();
+
   if (data[today] && data[today][studentId]) {
     delete data[today][studentId];
   }
   await saveAttendance(data);
 
-  // 2. Xóa khuôn mặt
+  // Xóa khuôn mặt
   try {
     const { clearFaces } = await import("./faceStorage");
     await clearFaces(studentId);
   } catch (e) {
     console.warn("Lỗi xóa mặt:", e);
   }
-
-  // 3. Xóa QR CCCD
-  try {
-    const { deleteQR } = await import("./qrStorage");
-    await deleteQR(studentId);
-  } catch (e) {
-    console.warn("Lỗi xóa QR:", e);
-  }
 }
+
 /**
- * Lấy điểm danh của 1 ngày cụ thể
- * @param date "yyyy-mm-dd"
+ * Lấy điểm danh của 1 ngày
  */
 export async function getAttendanceByDate(date) {
   const all = await getAttendance();
@@ -142,8 +117,7 @@ export async function getAttendanceByDate(date) {
 }
 
 /**
- * Lấy danh sách tất cả các ngày có dữ liệu
- * Trả về mảng ["2026-10-01", "2026-10-02", ...] sắp xếp mới → cũ
+ * Lấy danh sách ngày có dữ liệu
  */
 export async function getDanhSachNgay() {
   const all = await getAttendance();
@@ -153,23 +127,57 @@ export async function getDanhSachNgay() {
 /**
  * Sửa điểm danh thủ công
  */
-export async function updateAttendance(studentId, date, buoi, status, time) {
+export async function updateAttendance(studentId, date, buoi, tiet, trangThai, gioVao) {
   const data = await getAttendance();
   if (!data[date]) data[date] = {};
   if (!data[date][studentId]) data[date][studentId] = {};
+  if (!data[date][studentId][buoi]) data[date][studentId][buoi] = {};
 
-  data[date][studentId][buoi] = { status, time };
+  const keyTiet = `tiet${tiet}`;
+  let diemTru = 0;
+  let phutTre = 0;
+
+  if (trangThai === "Đi trễ") {
+    diemTru = -3;
+    const dsTiet = buoi === "sang" ? TKB_SANG : TKB_CHIEU;
+    const tietInfo = dsTiet.find((t) => t.tiet === tiet);
+    if (tietInfo && gioVao) {
+      const [h1, m1] = tietInfo.vao.split(":").map(Number);
+      const [h2, m2] = gioVao.split(":").map(Number);
+      phutTre = (h2 * 60 + m2) - (h1 * 60 + m1);
+      if (phutTre < 0) phutTre = 0;
+    }
+  } else if (trangThai === "Vắng") {
+    diemTru = -10;
+  }
+
+  data[date][studentId][buoi][keyTiet] = {
+    trangThai,
+    gioVao: gioVao || null,
+    phutTre,
+    diemTru,
+  };
+
   await saveAttendance(data);
 }
 
 /**
- * Xóa điểm danh 1 em trong 1 ngày cụ thể
+ * Xóa điểm danh 1 học sinh trong 1 ngày
  */
-export async function xoaDiemDanhTheoNgay(studentId, date, buoi) {
+export async function xoaDiemDanhTheoNgay(studentId, date, buoi, tiet) {
   const data = await getAttendance();
   if (!data[date] || !data[date][studentId]) return;
 
-  if (buoi) {
+  if (buoi && tiet) {
+    const keyTiet = `tiet${tiet}`;
+    if (data[date][studentId][buoi]) {
+      delete data[date][studentId][buoi][keyTiet];
+
+      if (Object.keys(data[date][studentId][buoi]).length === 0) {
+        delete data[date][studentId][buoi];
+      }
+    }
+  } else if (buoi) {
     delete data[date][studentId][buoi];
   } else {
     delete data[date][studentId];
@@ -181,44 +189,183 @@ export async function xoaDiemDanhTheoNgay(studentId, date, buoi) {
 
   await saveAttendance(data);
 }
+
 /**
- * Lấy toàn bộ dữ liệu điểm danh trong 1 tháng
- * @param thang "yyyy-mm"
- * Trả về: { "2026-10-01": {...}, "2026-10-02": {...}, ... }
+ * Tự động chuyển VẮNG cho những tiết đã hết mà chưa chấm
+ * CHỈ áp dụng cho tiết CÓ HỌC theo TKB
  */
-export async function getAttendanceByMonth(thang) {
+export async function tuDongChuyenVang() {
+  const today = new Date().toISOString().slice(0, 10);
+  const data = await getAttendance();
+
+  if (!data[today]) data[today] = {};
+
+  let coThayDoi = false;
+
+  // Lấy TKB của lớp hiện tại
+  let tkbLop = null;
+  try {
+    const maLop = localStorage.getItem("lop_dang_chon");
+    if (maLop) {
+      const { getTKB } = await import("./tkbStorage");
+      tkbLop = await getTKB(maLop);
+    }
+  } catch (e) {
+    console.warn("Không load được TKB:", e);
+  }
+
+  // Nếu chưa có TKB → KHÔNG chuyển vắng
+  if (!tkbLop) {
+    console.log("Chưa có TKB → bỏ qua tuDongChuyenVang");
+    return;
+  }
+
+  // Hàm kiểm tra tiết có học không theo TKB
+  function tietCoHoc(buoi, tiet) {
+    const day = new Date().getDay();
+    if (day === 0) return false; // Chủ nhật
+    const thu = `thu${day + 1}`;
+    const tkbThu = tkbLop[thu];
+    if (!tkbThu) return false;
+    const mangTiet = buoi === "sang" ? tkbThu.sang : tkbThu.chieu;
+    const index = buoi === "sang" ? tiet - 1 : tiet - 2;
+    return mangTiet && mangTiet[index] === true;
+  }
+
+  // Lấy các tiết đã kết thúc
+  const tietSangDaHet = layTietDaKetThuc("sang");
+  const tietChieuDaHet = layTietDaKetThuc("chieu");
+
+  students.forEach((hs) => {
+    if (!data[today][hs.id]) data[today][hs.id] = {};
+
+    // Xử lý buổi sáng — CHỈ tiết có học
+    tietSangDaHet.forEach((t) => {
+      if (!tietCoHoc("sang", t.tiet)) return;
+
+      const keyTiet = `tiet${t.tiet}`;
+      if (!data[today][hs.id].sang) data[today][hs.id].sang = {};
+      if (!data[today][hs.id].sang[keyTiet]) {
+        data[today][hs.id].sang[keyTiet] = {
+          trangThai: "Vắng",
+          gioVao: null,
+          phutTre: null,
+          diemTru: -10,
+        };
+        coThayDoi = true;
+      }
+    });
+
+    // Xử lý buổi chiều — CHỈ tiết có học
+    tietChieuDaHet.forEach((t) => {
+      if (!tietCoHoc("chieu", t.tiet)) return;
+
+      const keyTiet = `tiet${t.tiet}`;
+      if (!data[today][hs.id].chieu) data[today][hs.id].chieu = {};
+      if (!data[today][hs.id].chieu[keyTiet]) {
+        data[today][hs.id].chieu[keyTiet] = {
+          trangThai: "Vắng",
+          gioVao: null,
+          phutTre: null,
+          diemTru: -10,
+        };
+        coThayDoi = true;
+      }
+    });
+  });
+
+  if (coThayDoi) {
+    await saveAttendance(data);
+  }
+}
+
+/**
+ * Tính điểm thi đua tuần
+ */
+export async function tinhDiemTuan(tuanCode) {
   const all = await getAttendance();
+  const dsNgay = Object.keys(all).filter((ngay) => {
+    const d = new Date(ngay);
+    const kg = new Date("2026-09-05");
+    const soNgay = Math.floor((d - kg) / (1000 * 60 * 60 * 24));
+    const tuan = Math.floor(soNgay / 7) + 1;
+    const nam = d.getFullYear();
+    return `${nam}-W${String(tuan).padStart(2, "0")}` === tuanCode;
+  });
+
   const ketQua = {};
-  Object.keys(all).forEach((ngay) => {
-    if (ngay.startsWith(thang)) {
-      ketQua[ngay] = all[ngay];
+
+  students.forEach((hs) => {
+    ketQua[hs.id] = {
+      id: hs.id,
+      name: hs.name,
+      tongDiem: 100,
+      soLanTre: 0,
+      soLanVang: 0,
+      chiTiet: [],
+    };
+  });
+
+  dsNgay.forEach((ngay) => {
+    const dataNgay = all[ngay] || {};
+    students.forEach((hs) => {
+      const hsData = dataNgay[hs.id];
+      if (!hsData) return;
+
+      ["sang", "chieu"].forEach((buoi) => {
+        if (!hsData[buoi]) return;
+        Object.keys(hsData[buoi]).forEach((keyTiet) => {
+          const t = hsData[buoi][keyTiet];
+          if (t.diemTru < 0) {
+            ketQua[hs.id].tongDiem += t.diemTru;
+            if (t.trangThai === "Đi trễ") ketQua[hs.id].soLanTre++;
+            if (t.trangThai === "Vắng") ketQua[hs.id].soLanVang++;
+            ketQua[hs.id].chiTiet.push({
+              ngay,
+              buoi,
+              tiet: keyTiet,
+              ...t,
+            });
+          }
+        });
+      });
+    });
+  });
+
+  return Object.values(ketQua);
+}
+
+/**
+ * Tính điểm lớp theo tuần
+ */
+export async function tinhDiemLopTuan(tuanCode) {
+  const dsHS = await tinhDiemTuan(tuanCode);
+  let diemLop = 100;
+  let tongTre = 0;
+  let tongVang = 0;
+
+  dsHS.forEach((hs) => {
+    tongTre += hs.soLanTre;
+    tongVang += hs.soLanVang;
+    if (hs.tongDiem < 100) {
+      diemLop += (hs.tongDiem - 100);
     }
   });
-  return ketQua;
+
+  return {
+    diemLop,
+    tongTre,
+    tongVang,
+  };
 }
 
 /**
  * Tính thống kê cho tất cả học sinh trong 1 tháng
- * @param thang "yyyy-mm"
- */
-/**
- * Tính thống kê cho tất cả học sinh trong 1 tháng
- * @param thang "yyyy-mm"
- * @param students Danh sách học sinh
- * Quy tắc: Mỗi ngày trong tháng = 2 buổi (sáng + chiều)
- *          Không có dữ liệu → tính là VẮNG
  */
 export async function tinhThongKeThang(thang, students) {
-  const dataThang = await getAttendanceByMonth(thang);
+  const all = await getAttendance();
+  const dsNgay = Object.keys(all).filter((ngay) => ngay.startsWith(thang));
 
-  // Lấy tất cả các ngày có dữ liệu
-  const dsNgayCoDuLieu = Object.keys(dataThang).sort();
-
-  // Đếm số ngày trong tháng
-  const [year, month] = thang.split("-").map(Number);
-  const soNgayTrongThang = new Date(year, month, 0).getDate();
-
-  // Khởi tạo thống kê cho từng em
   const thongKe = {};
   students.forEach((s) => {
     thongKe[s.id] = {
@@ -231,41 +378,35 @@ export async function tinhThongKeThang(thang, students) {
     };
   });
 
-  // Đếm theo các ngày CÓ DỮ LIỆU
-  dsNgayCoDuLieu.forEach((ngay) => {
-    const dataNgay = dataThang[ngay];
+  dsNgay.forEach((ngay) => {
+    const dataNgay = all[ngay] || {};
     students.forEach((s) => {
-      const hs = dataNgay[s.id] || {};
+      const hsData = dataNgay[s.id];
+      if (!hsData) return;
 
-      // Buổi sáng
-      const sang = hs.sang;
-      thongKe[s.id].tongBuoi++;
-      if (sang) {
-        if (sang.status === "Đúng giờ") thongKe[s.id].dungGio++;
-        else if (sang.status === "Đi trễ") thongKe[s.id].diTre++;
-        else thongKe[s.id].vang++;
-      } else {
-        thongKe[s.id].vang++;
-      }
+      ["sang", "chieu"].forEach((buoi) => {
+        if (!hsData[buoi]) return;
 
-      // Buổi chiều
-      const chieu = hs.chieu;
-      thongKe[s.id].tongBuoi++;
-      if (chieu) {
-        if (chieu.status === "Đúng giờ") thongKe[s.id].dungGio++;
-        else if (chieu.status === "Đi trễ") thongKe[s.id].diTre++;
-        else thongKe[s.id].vang++;
-      } else {
-        thongKe[s.id].vang++;
-      }
+        Object.keys(hsData[buoi]).forEach((keyTiet) => {
+          const t = hsData[buoi][keyTiet];
+          thongKe[s.id].tongBuoi++;
+
+          if (t.trangThai === "Đúng giờ") {
+            thongKe[s.id].dungGio++;
+          } else if (t.trangThai === "Đi trễ") {
+            thongKe[s.id].diTre++;
+          } else if (t.trangThai === "Vắng") {
+            thongKe[s.id].vang++;
+          }
+        });
+      });
     });
   });
 
   return {
     thang,
-    soNgay: dsNgayCoDuLieu.length,
-    soNgayTrongThang,
-    dsNgay: dsNgayCoDuLieu,
+    soNgay: dsNgay.length,
+    dsNgay,
     thongKe: Object.values(thongKe),
   };
 }
