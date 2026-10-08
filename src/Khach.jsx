@@ -79,6 +79,7 @@ export default function Khach() {
           </div>
 
           <TabBangKhach
+            students={students}
             attendance={attendance}
             today={today}
             total={total}
@@ -93,7 +94,7 @@ export default function Khach() {
 }
 
 /* ---------- BẢNG ĐIỂM DANH CHO KHÁCH ---------- */
-function TabBangKhach({ attendance, today, total, buoi }) {
+function TabBangKhach({ students, attendance, today, total, buoi }) {
   const dem = { "Đúng giờ": 0, "Đi trễ": 0, "Vắng": 0 };
   students.forEach((s) => {
     const a = (attendance[s.id] || {})[buoi];
