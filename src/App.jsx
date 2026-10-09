@@ -50,17 +50,12 @@ export default function App() {
     setToday(d);
     loadData();
 
-    // Tự động chuyển vắng + auto khởi tạo HS mới khi mở app
-    import("./storage").then(async ({ tuDongChuyenVang, tuDongKhoiTaoHomNay }) => {
-      // Bước 1: Auto khởi tạo HS chưa có trong hôm nay
-      await tuDongKhoiTaoHomNay(students, maLop);
-      // Bước 2: Chuyển vắng cho tiết đã hết (có check miễn trừ)
-      await tuDongChuyenVang();
-      // Bước 3: Load lại data
-      await loadData();
+    // Tự động chuyển vắng khi mở app
+    import("./storage").then(({ tuDongChuyenVang }) => {
+      tuDongChuyenVang().then(() => loadData());
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [maLop]);
+  }, []);
 
   // ============ LOAD DATA ============
   async function loadData() {
@@ -565,7 +560,6 @@ function TabDiemDanh({
   const [suaStatus, setSuaStatus] = useState("Đúng giờ");
   const [suaTime, setSuaTime] = useState("");
 
-  // Cập nhật tiết hiện tại mỗi 30s
   useEffect(() => {
     async function capNhat() {
       const { tietDangDienRaTheoGio } = await import("./thoiKhoaBieu");
@@ -581,7 +575,6 @@ function TabDiemDanh({
     return () => clearInterval(timer);
   }, []);
 
-  // Load TKB của lớp hiện tại
   useEffect(() => {
     async function loadTKB() {
       try {
