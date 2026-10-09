@@ -6,7 +6,7 @@ import News from "./News";
 import "./App.css";
 
 export default function Khach() {
-  const { students } = useStudents();
+  const { students, maLop, danhSachLop, chonLop } = useStudents();
   const [tab, setTab] = useState("bang");
   const [attendance, setAttendance] = useState({});
   const [today, setToday] = useState("");
@@ -18,6 +18,12 @@ export default function Khach() {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Reload data khi đổi lớp
+  useEffect(() => {
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [maLop]);
 
   async function loadData() {
     try {
@@ -34,10 +40,34 @@ export default function Khach() {
   return (
     <div className="container">
       <div className="header-row">
-        <h1>📋 Điểm danh lớp 11A3</h1>
-        <Link to="/login">
-          <button style={{ background: "#64748b" }}>🔐 Giáo viên</button>
-        </Link>
+        <h1>📋 Điểm danh {maLop ? `lớp ${maLop}` : "lớp 11A3"}</h1>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {Object.keys(danhSachLop).length > 0 && (
+            <select
+              value={maLop}
+              onChange={(e) => chonLop(e.target.value)}
+              style={{
+                padding: "8px 14px",
+                fontSize: 15,
+                fontWeight: 700,
+                borderRadius: 10,
+                border: "2px solid #667eea",
+                background: "white",
+                color: "#1f2937",
+                cursor: "pointer",
+              }}
+            >
+              {Object.keys(danhSachLop).map((k) => (
+                <option key={k} value={k}>
+                  Lớp {k} ({danhSachLop[k].soHS} HS)
+                </option>
+              ))}
+            </select>
+          )}
+          <Link to="/login">
+            <button style={{ background: "#64748b" }}>🔐 Giáo viên</button>
+          </Link>
+        </div>
       </div>
 
       <p style={{ background: "#dbeafe", padding: 12, borderRadius: 8 }}>
