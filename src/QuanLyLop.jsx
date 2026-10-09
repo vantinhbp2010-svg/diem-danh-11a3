@@ -1,25 +1,22 @@
 import { useState, useRef } from "react";
 import { useStudents } from "./StudentsContext";
 import { saveDSLop, xoaLop } from "./lopStorage";
+import { khoiTaoDSHocSinh } from "./storage";
 import "./App.css";
 
 export default function QuanLyLop() {
   const { students, reload, maLop, danhSachLop, setStudents, chonLop } =
     useStudents();
   const [msg, setMsg] = useState("");
-  const [preview, setPreview] = useState([]);
   const [tenLopMoi, setTenLopMoi] = useState("");
   const [dangXuLy, setDangXuLy] = useState(false);
   const fileRef = useRef(null);
 
-  // Form thêm HS
   const [showThem, setShowThem] = useState(false);
   const [tenHSMoi, setTenHSMoi] = useState("");
 
-  // Sinh mã HS theo lớp: 11A3-001, 11A3-002, ...
   function sinhMaHS(danhSachHienCo, lopCode) {
     if (!lopCode) lopCode = "XX";
-    // Đếm số HS đã có mã bắt đầu bằng "<lopCode>-"
     const prefix = `${lopCode}-`;
     const soLonNhat = danhSachHienCo
       .filter((s) => String(s.id).startsWith(prefix))
@@ -31,9 +28,17 @@ export default function QuanLyLop() {
     return `${prefix}${String(soLonNhat + 1).padStart(3, "0")}`;
   }
 
+  // ============ UPLOAD EXCEL → AUTO LƯU + KHỞI TẠO FIREBASE ============
   async function handleUploadExcel(e) {
     const file = e.target.files[0];
     if (!file) return;
+
+    const lopCode = (tenLopMoi.trim() || maLop || "").trim();
+    if (!lopCode) {
+      setMsg("❌ Chưa nhập mã lớp — nhập mã lớp trước khi import!");
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
 
     setMsg("⏳ Đang đọc file...");
     setDangXuLy(true);
@@ -51,15 +56,6 @@ export default function QuanLyLop() {
         return;
       }
 
-      // Mã lớp để đặt prefix
-      const lopCode = (tenLopMoi.trim() || maLop || "").trim();
-      if (!lopCode) {
-        setMsg("❌ Chưa nhập mã lớp — nhập mã lớp trước khi import!");
-        setDangXuLy(false);
-        return;
-      }
-
-      // Bỏ dòng đầu nếu là tiêu đề
       let body = rows;
       const dongDau = String(rows[0]?.[0] || "").toLowerCase();
       if (
@@ -93,52 +89,27 @@ export default function QuanLyLop() {
         return;
       }
 
-      setPreview(danhSach);
-      setMsg(
-        `✅ Đã đọc ${danhSach.length} học sinh — mã dạng "${lopCode}-001" → "${lopCode}-${String(
-          danhSach.length
-        ).padStart(3, "0")}"`
-      );
-    } catch (err) {
-      setMsg("❌ Lỗi đọc file: " + err.message);
-    } finally {
-      setDangXuLy(false);
-    }
-  }
-
-  async function handleLuu() {
-    const maLopDung = tenLopMoi.trim() || maLop;
-
-    if (!maLopDung) {
-      setMsg("❌ Chưa nhập mã lớp (VD: 11A3)");
-      return;
-    }
-
-    if (preview.length === 0) {
-      setMsg("❌ Chưa có danh sách để lưu");
-      return;
-    }
-
-    if (
-      !window.confirm(
-        `Lưu danh sách ${preview.length} học sinh vào lớp "${maLopDung}"?\n\n` +
-          `Mã HS sẽ có dạng: ${maLopDung}-001, ${maLopDung}-002, ...`
-      )
-    )
-      return;
-
-    setDangXuLy(true);
-    try {
-      const dsFinal = preview.map((s) => ({ ...s, class: maLopDung }));
-      await saveDSLop(maLopDung, dsFinal);
+      // BƯỚC 1: Lưu DS lớp
+      setMsg(`⏳ Đang lưu ${danhSach.length} HS vào lớp ${lopCode}...`);
+      await saveDSLop(lopCode, danhSach);
       await reload();
-      setMsg(`✅ Đã lưu ${dsFinal.length} HS vào lớp ${maLopDung}`);
-      setPreview([]);
+
+      // BƯỚC 2: Khởi tạo vào diemdanh/all + đánh dấu miễn trừ auto vắng
+      setMsg(`⏳ Đang khởi tạo dữ liệu điểm danh...`);
+      const kq = await khoiTaoDSHocSinh(danhSach, lopCode);
+
+      setMsg(
+        `✅ Đã lưu ${danhSach.length} HS vào lớp ${lopCode}!\n` +
+          `🎯 Khởi tạo điểm danh: ${kq.soLuu}/${kq.tongSo} HS cho buổi ${
+            kq.buoi === "sang" ? "Sáng" : "Chiều"
+          } ngày ${kq.ngay}\n` +
+          `⏭️ Buổi này được MIỄN TRỪ auto vắng — chỉ trừ khi GV chấm tay.`
+      );
       setTenLopMoi("");
       if (fileRef.current) fileRef.current.value = "";
-      setTimeout(() => setMsg(""), 3000);
+      setTimeout(() => setMsg(""), 8000);
     } catch (err) {
-      setMsg("❌ Lỗi lưu: " + err.message);
+      setMsg("❌ Lỗi import: " + err.message);
     } finally {
       setDangXuLy(false);
     }
@@ -155,9 +126,7 @@ export default function QuanLyLop() {
       return;
     }
 
-    // Sinh mã HS theo lớp
     const maHS = sinhMaHS(students, maLop);
-
     const hsMoi = {
       id: maHS,
       name: tenHSMoi.trim(),
@@ -170,9 +139,11 @@ export default function QuanLyLop() {
       await saveDSLop(maLop, dsMoi);
       await reload();
 
-      setMsg(`✅ Đã thêm: ${hsMoi.name} (${hsMoi.id})`);
+      // Khởi tạo cho HS mới
+      await khoiTaoDSHocSinh([hsMoi], maLop);
+
+      setMsg(`✅ Đã thêm & khởi tạo: ${hsMoi.name} (${hsMoi.id})`);
       setTenHSMoi("");
-      setShowThem(false);
       setTimeout(() => setMsg(""), 3000);
     } catch (err) {
       setMsg("❌ Lỗi thêm: " + err.message);
@@ -181,7 +152,6 @@ export default function QuanLyLop() {
     }
   }
 
-  // ============ XÓA 1 HỌC SINH ============
   async function handleXoaHS(hs) {
     if (
       !window.confirm(
@@ -196,7 +166,6 @@ export default function QuanLyLop() {
       const dsMoi = students.filter((s) => s.id !== hs.id);
       await saveDSLop(maLop, dsMoi);
       await reload();
-
       setMsg(`🗑️ Đã xóa: ${hs.name}`);
       setTimeout(() => setMsg(""), 3000);
     } catch (err) {
@@ -230,7 +199,12 @@ export default function QuanLyLop() {
 
   async function handleXuatMau() {
     const XLSX = await import("xlsx");
-    const data = [["Họ tên"], ["Nguyễn Văn An"], ["Trần Thị Bình"], ["Lê Văn Cường"]];
+    const data = [
+      ["Họ tên"],
+      ["Nguyễn Văn An"],
+      ["Trần Thị Bình"],
+      ["Lê Văn Cường"],
+    ];
     const ws = XLSX.utils.aoa_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Mau");
@@ -272,9 +246,12 @@ export default function QuanLyLop() {
         )}
       </p>
 
-      {msg && <div className="msg">{msg}</div>}
+      {msg && (
+        <div className="msg" style={{ whiteSpace: "pre-line" }}>
+          {msg}
+        </div>
+      )}
 
-      {/* Danh sách lớp đã tạo */}
       {dsLopKeys.length > 0 && (
         <div
           style={{
@@ -290,9 +267,7 @@ export default function QuanLyLop() {
               <div
                 key={k}
                 onClick={() => {
-                  if (k !== maLop) {
-                    chonLop(k);
-                  }
+                  if (k !== maLop) chonLop(k);
                 }}
                 style={{
                   padding: "10px 16px",
@@ -309,22 +284,6 @@ export default function QuanLyLop() {
                       ? "0 4px 12px rgba(102, 126, 234, 0.4)"
                       : "0 2px 4px rgba(0,0,0,0.05)",
                 }}
-                onMouseEnter={(e) => {
-                  if (k !== maLop) {
-                    e.currentTarget.style.transform = "translateY(-2px)";
-                    e.currentTarget.style.boxShadow =
-                      "0 6px 16px rgba(102, 126, 234, 0.3)";
-                    e.currentTarget.style.borderColor = "#667eea";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (k !== maLop) {
-                    e.currentTarget.style.transform = "translateY(0)";
-                    e.currentTarget.style.boxShadow =
-                      "0 2px 4px rgba(0,0,0,0.05)";
-                    e.currentTarget.style.borderColor = "#e5e7eb";
-                  }
-                }}
               >
                 Lớp {k} ({danhSachLop[k].soHS} HS)
               </div>
@@ -333,7 +292,6 @@ export default function QuanLyLop() {
         </div>
       )}
 
-      {/* ============ DANH SÁCH HỌC SINH HIỆN TẠI ============ */}
       {maLop && (
         <div
           style={{
@@ -365,7 +323,6 @@ export default function QuanLyLop() {
             </button>
           </div>
 
-          {/* Form thêm HS */}
           {showThem && (
             <div
               style={{
@@ -418,13 +375,7 @@ export default function QuanLyLop() {
                     }}
                     autoFocus
                   />
-                  <p
-                    style={{
-                      margin: "6px 0 0",
-                      fontSize: 12,
-                      color: "#64748b",
-                    }}
-                  >
+                  <p style={{ margin: "6px 0 0", fontSize: 12, color: "#64748b" }}>
                     💡 Mã HS sẽ tự sinh: <b>{maHSTiepTheo}</b>
                   </p>
                 </div>
@@ -438,13 +389,12 @@ export default function QuanLyLop() {
                     minHeight: 44,
                   }}
                 >
-                  💾 Lưu
+                  {dangXuLy ? "⏳ Đang lưu..." : "💾 Lưu & Thêm"}
                 </button>
               </div>
             </div>
           )}
 
-          {/* Bảng danh sách HS */}
           <div style={{ maxHeight: 500, overflowY: "auto" }}>
             <table>
               <thead>
@@ -482,7 +432,6 @@ export default function QuanLyLop() {
         </div>
       )}
 
-      {/* Import Excel */}
       <div
         style={{
           padding: 20,
@@ -496,7 +445,10 @@ export default function QuanLyLop() {
           File Excel chỉ cần <b>1 cột duy nhất</b>: cột A = Họ tên học sinh.
           <br />
           Mã HS sẽ có dạng <code>11A3-001</code>, <code>11A3-002</code>, ...
-          (dùng mã lớp làm prefix → mỗi lớp có mã riêng, không trùng nhau).
+          <br />
+          <b style={{ color: "#10b981" }}>
+            ⚡ Chọn file xong là tự động lưu DS + khởi tạo vào Firebase luôn!
+          </b>
         </p>
 
         <div
@@ -529,9 +481,7 @@ export default function QuanLyLop() {
           />
         </div>
 
-        <div
-          style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 15 }}
-        >
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 15 }}>
           <button onClick={handleXuatMau} style={{ background: "#3b82f6" }}>
             📄 Tải file mẫu
           </button>
@@ -539,15 +489,17 @@ export default function QuanLyLop() {
             style={{
               display: "inline-block",
               padding: "8px 16px",
-              background: "linear-gradient(135deg, #667eea, #764ba2)",
+              background: dangXuLy
+                ? "#94a3b8"
+                : "linear-gradient(135deg, #667eea, #764ba2)",
               color: "white",
               borderRadius: 8,
-              cursor: "pointer",
+              cursor: dangXuLy ? "not-allowed" : "pointer",
               fontSize: 14,
               fontWeight: 600,
             }}
           >
-            📤 Chọn file Excel
+            {dangXuLy ? "⏳ Đang xử lý..." : "📤 Chọn file Excel (auto lưu + khởi tạo)"}
             <input
               ref={fileRef}
               type="file"
@@ -560,50 +512,6 @@ export default function QuanLyLop() {
         </div>
       </div>
 
-      {/* Preview */}
-      {preview.length > 0 && (
-        <div style={{ marginTop: 20 }}>
-          <h4>📋 Xem trước ({preview.length} em)</h4>
-          <div style={{ maxHeight: 400, overflowY: "auto" }}>
-            <table>
-              <thead>
-                <tr>
-                  <th>STT</th>
-                  <th>Mã HS</th>
-                  <th>Họ tên</th>
-                </tr>
-              </thead>
-              <tbody>
-                {preview.map((s, i) => (
-                  <tr key={s.id}>
-                    <td>{i + 1}</td>
-                    <td>{s.id}</td>
-                    <td>{s.name}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div style={{ display: "flex", gap: 10, marginTop: 15 }}>
-            <button
-              onClick={handleLuu}
-              disabled={dangXuLy}
-              style={{ background: "#10b981", flex: 1 }}
-            >
-              💾 Lưu vào lớp {tenLopMoi || maLop || "(chưa có mã)"}
-            </button>
-            <button
-              onClick={() => setPreview([])}
-              style={{ background: "#94a3b8" }}
-            >
-              ❌ Hủy
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Xóa lớp hiện tại */}
       {maLop && (
         <div
           style={{
@@ -614,9 +522,7 @@ export default function QuanLyLop() {
             borderLeft: "5px solid #dc2626",
           }}
         >
-          <h4 style={{ color: "#991b1b", marginTop: 0 }}>
-            ⚠️ Vùng nguy hiểm
-          </h4>
+          <h4 style={{ color: "#991b1b", marginTop: 0 }}>⚠️ Vùng nguy hiểm</h4>
           <p style={{ fontSize: 13, color: "#991b1b" }}>
             Xóa lớp <b>{maLop}</b> khỏi hệ thống.
           </p>

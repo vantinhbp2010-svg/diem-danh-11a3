@@ -11,7 +11,7 @@ import {
   updateAttendance,
   xoaDiemDanhTheoNgay,
   tinhThongKeThang,
-  xacNhanKhongVang
+  xacNhanKhongVang,
 } from "./storage";
 import { logout, getUser } from "./auth";
 import News from "./News";
@@ -50,12 +50,17 @@ export default function App() {
     setToday(d);
     loadData();
 
-    // Tự động chuyển vắng khi mở app
-    import("./storage").then(({ tuDongChuyenVang }) => {
-      tuDongChuyenVang().then(() => loadData());
+    // Tự động chuyển vắng + auto khởi tạo HS mới khi mở app
+    import("./storage").then(async ({ tuDongChuyenVang, tuDongKhoiTaoHomNay }) => {
+      // Bước 1: Auto khởi tạo HS chưa có trong hôm nay
+      await tuDongKhoiTaoHomNay(students, maLop);
+      // Bước 2: Chuyển vắng cho tiết đã hết (có check miễn trừ)
+      await tuDongChuyenVang();
+      // Bước 3: Load lại data
+      await loadData();
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [maLop]);
 
   // ============ LOAD DATA ============
   async function loadData() {
@@ -148,15 +153,14 @@ export default function App() {
       setMsg("❌ Lỗi sửa: " + err.message);
     }
   }
-  // GV xác nhận "vắng có phép" → chỉ trừ 5đ (thay vì 10đ)
+
   async function handleXacNhan(id, buoi, tiet) {
     const hs = students.find((s) => s.id === id);
     if (
       !window.confirm(
         `Xác nhận "${hs?.name}" VẮNG CÓ PHÉP tiết ${tiet} buổi ${
           buoi === "sang" ? "sáng" : "chiều"
-        }?\n\n` +
-          `→ Chỉ trừ 5đ thay vì 10đ.`
+        }?\n\n` + `→ Chỉ trừ 5đ thay vì 10đ.`
       )
     )
       return;
@@ -174,6 +178,7 @@ export default function App() {
       setMsg("❌ Lỗi: " + err.message);
     }
   }
+
   async function handleXoaTatCa(id) {
     const hs = students.find((s) => s.id === id);
     if (
@@ -537,7 +542,7 @@ export default function App() {
 }
 
 /* =============================================================
-   TAB ĐIỂM DANH — tự động theo tiết, có nút dự phòng
+   TAB ĐIỂM DANH
    ============================================================= */
 function TabDiemDanh({
   students,
@@ -594,8 +599,6 @@ function TabDiemDanh({
   const tiet = tietHienTai?.tiet || tietThuCong;
   const buoiHienTai = tietHienTai?.buoi || buoiThuCong;
 
-  // Kiểm tra tiết có học không (theo TKB)
-  // Nếu chưa có TKB → KHÔNG tính vắng
   function tietCoHoc() {
     if (!tkbLop) return false;
     const day = new Date().getDay();
@@ -804,7 +807,7 @@ function TabDiemDanh({
             const a = (attendance[s.id] || {})[buoiHienTai]?.[`tiet${tiet}`];
             let status = coTiet ? "❌ Vắng" : "📭 Tiết trống";
             let cls = coTiet ? "vang" : "";
-            let laVang = !a && coTiet; // Đang bị vắng (chưa chấm)
+            let laVang = !a && coTiet;
 
             if (a) {
               if (a.trangThai === "Đúng giờ") {
@@ -945,7 +948,7 @@ function TabDiemDanh({
 }
 
 /* =============================================================
-   TAB CAMERA AI (chỉ nhận diện khuôn mặt)
+   TAB CAMERA AI
    ============================================================= */
 function TabCameraAI({ students, onMark }) {
   const [running, setRunning] = useState(false);

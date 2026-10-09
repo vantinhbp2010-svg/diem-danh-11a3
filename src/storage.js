@@ -4,8 +4,26 @@ import { students } from "./data";
 import { tinhTrangThai, tietDaHet, layTietDaKetThuc, TKB_SANG, TKB_CHIEU } from "./thoiKhoaBieu";
 
 /**
+ * Lấy ngày hôm nay theo GIỜ VIỆT NAM (UTC+7)
+ */
+function layNgayHomNay() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+}
+
+/**
+ * Lấy buổi hiện tại theo giờ
+ */
+function layBuoiHienTai() {
+  const gio = new Date().getHours();
+  return gio >= 12 ? "chieu" : "sang";
+}
+
+/**
  * Lấy toàn bộ dữ liệu điểm danh
- * Cấu trúc: { "2026-10-08": { "HS001": { "sang": { "tiet1": {...} }, "chieu": {...} } } }
  */
 export async function getAttendance() {
   const ref = doc(db, "diemdanh", "all");
@@ -19,10 +37,127 @@ export async function saveAttendance(data) {
 }
 
 /**
+ * ============ MIỄN TRỪ AUTO VẮNG ============
+ */
+export async function getMienTru() {
+  const ref = doc(db, "diemdanh", "mienTru");
+  const snap = await getDoc(ref);
+  return snap.exists() ? snap.data().data || {} : {};
+}
+
+async function saveMienTru(data) {
+  const ref = doc(db, "diemdanh", "mienTru");
+  await setDoc(ref, { data });
+}
+
+export async function danhDauMienTru(maLop, ngay, buoi) {
+  const all = await getMienTru();
+  if (!all[maLop]) all[maLop] = {};
+  if (!all[maLop][ngay]) all[maLop][ngay] = [];
+  if (!all[maLop][ngay].includes(buoi)) {
+    all[maLop][ngay].push(buoi);
+  }
+  await saveMienTru(all);
+  return all[maLop];
+}
+
+export async function kiemTraMienTru(maLop, ngay, buoi) {
+  const all = await getMienTru();
+  if (!all[maLop] || !all[maLop][ngay]) return false;
+  return all[maLop][ngay].includes(buoi);
+}
+
+/**
+ * ============ KHỞI TẠO DS HS VÀO FIREBASE ============
+ * Lưu tất cả HS của lớp vào diemdanh/all cho ngày hôm nay + buổi hiện tại
+ * Trạng thái: "Chưa chấm" (0đ)
+ * Và đánh dấu miễn trừ auto vắng cho buổi đó
+ */
+export async function khoiTaoDSHocSinh(students, maLop) {
+
+  if (!students || students.length === 0) {
+    return { ok: false, message: "Không có HS" };
+  }
+
+  const today = layNgayHomNay();
+  const buoi = layBuoiHienTai();
+  const data = await getAttendance();
+
+  if (!data[today]) data[today] = {};
+
+  let soLuu = 0;
+
+  students.forEach((hs) => {
+    if (!data[today][hs.id]) data[today][hs.id] = {};
+    if (!data[today][hs.id][buoi]) data[today][hs.id][buoi] = {};
+
+    // Chỉ đánh dấu khởi tạo nếu buổi đó chưa có gì
+    if (Object.keys(data[today][hs.id][buoi]).length === 0) {
+      data[today][hs.id][buoi].__khoiTao__ = {
+        trangThai: "Chưa chấm",
+        gioVao: null,
+        phutTre: 0,
+        diemTru: 0,
+      };
+      soLuu++;
+    }
+  });
+
+  await saveAttendance(data);
+
+  // Đánh dấu miễn trừ auto vắng cho buổi này
+  if (maLop) {
+    await danhDauMienTru(maLop, today, buoi);
+  }
+
+  return { ok: true, soLuu, tongSo: students.length, buoi, ngay: today };
+}
+/**
+ * TỰ ĐỘNG khởi tạo HS vào Firebase cho hôm nay
+ * Chạy mỗi khi mở app → HS nào chưa có trong ngày → tự thêm
+ * KHÔNG đánh dấu miễn trừ (vì đây là ngày mới, không phải ngày import)
+ */
+export async function tuDongKhoiTaoHomNay(students, maLop) {
+  if (!students || students.length === 0) return { ok: false };
+  if (!maLop) return { ok: false };
+
+  const today = layNgayHomNay();
+  const buoi = layBuoiHienTai();
+  const data = await getAttendance();
+
+  if (!data[today]) data[today] = {};
+
+  let soLuu = 0;
+
+  students.forEach((hs) => {
+    if (!data[today][hs.id]) data[today][hs.id] = {};
+    if (!data[today][hs.id][buoi]) data[today][hs.id][buoi] = {};
+
+    // Chỉ khởi tạo nếu buổi đó CHƯA có gì
+    if (Object.keys(data[today][hs.id][buoi]).length === 0) {
+      data[today][hs.id][buoi].__khoiTao__ = {
+        trangThai: "Chưa chấm",
+        gioVao: null,
+        phutTre: 0,
+        diemTru: 0,
+      };
+      soLuu++;
+    }
+  });
+
+  if (soLuu > 0) {
+    await saveAttendance(data);
+    console.log(`🤖 Auto khởi tạo ${soLuu}/${students.length} HS cho ${today} buổi ${buoi}`);
+  }
+
+  return { ok: true, soLuu, ngay: today, buoi };
+}
+
+/**
  * Điểm danh 1 học sinh cho 1 tiết cụ thể
  */
 export async function markAttendance(studentId, buoi, tiet) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = layNgayHomNay();
   const data = await getAttendance();
 
   if (!data[today]) data[today] = {};
@@ -63,10 +198,41 @@ export async function markAttendance(studentId, buoi, tiet) {
 }
 
 /**
- * Xóa điểm danh 1 học sinh cho 1 tiết
+ * Lưu TẤT CẢ HS của lớp vào Firebase cho 1 tiết (thủ công)
  */
+export async function luuTatCaHocSinh(students, buoi, tiet) {
+  const today = layNgayHomNay();
+  const data = await getAttendance();
+
+  if (!data[today]) data[today] = {};
+
+  const now = new Date();
+  const gioVao = now.toTimeString().slice(0, 5);
+  const keyTiet = `tiet${tiet}`;
+
+  let soLuu = 0;
+
+  students.forEach((hs) => {
+    if (!data[today][hs.id]) data[today][hs.id] = {};
+    if (!data[today][hs.id][buoi]) data[today][hs.id][buoi] = {};
+
+    if (!data[today][hs.id][buoi][keyTiet]) {
+      data[today][hs.id][buoi][keyTiet] = {
+        trangThai: "Đúng giờ",
+        gioVao: gioVao,
+        phutTre: 0,
+        diemTru: 0,
+      };
+      soLuu++;
+    }
+  });
+
+  await saveAttendance(data);
+  return { ok: true, soLuu, tongSo: students.length };
+}
+
 export async function xoaDiemDanh(studentId, buoi, tiet) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = layNgayHomNay();
   const data = await getAttendance();
 
   if (!data[today] || !data[today][studentId] || !data[today][studentId][buoi]) {
@@ -87,11 +253,8 @@ export async function xoaDiemDanh(studentId, buoi, tiet) {
   await saveAttendance(data);
 }
 
-/**
- * Xóa TẤT CẢ dữ liệu của 1 học sinh (điểm danh + khuôn mặt)
- */
 export async function xoaTatCaCuaHocSinh(studentId) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = layNgayHomNay();
   const data = await getAttendance();
 
   if (data[today] && data[today][studentId]) {
@@ -99,7 +262,6 @@ export async function xoaTatCaCuaHocSinh(studentId) {
   }
   await saveAttendance(data);
 
-  // Xóa khuôn mặt
   try {
     const { clearFaces } = await import("./faceStorage");
     await clearFaces(studentId);
@@ -108,25 +270,16 @@ export async function xoaTatCaCuaHocSinh(studentId) {
   }
 }
 
-/**
- * Lấy điểm danh của 1 ngày
- */
 export async function getAttendanceByDate(date) {
   const all = await getAttendance();
   return all[date] || {};
 }
 
-/**
- * Lấy danh sách ngày có dữ liệu
- */
 export async function getDanhSachNgay() {
   const all = await getAttendance();
   return Object.keys(all).sort().reverse();
 }
 
-/**
- * Sửa điểm danh thủ công
- */
 export async function updateAttendance(studentId, date, buoi, tiet, trangThai, gioVao) {
   const data = await getAttendance();
   if (!data[date]) data[date] = {};
@@ -149,6 +302,8 @@ export async function updateAttendance(studentId, date, buoi, tiet, trangThai, g
     }
   } else if (trangThai === "Vắng") {
     diemTru = -10;
+  } else if (trangThai === "Có phép") {
+    diemTru = -5;
   }
 
   data[date][studentId][buoi][keyTiet] = {
@@ -161,13 +316,6 @@ export async function updateAttendance(studentId, date, buoi, tiet, trangThai, g
   await saveAttendance(data);
 }
 
-/**
- * Xóa điểm danh 1 học sinh trong 1 ngày
- */
-/**
- * GV xác nhận không vắng (có phép) → chuyển Vắng thành "Có phép"
- * Điểm trừ = 0 (không trừ điểm)
- */
 export async function xacNhanKhongVang(studentId, date, buoi, tiet) {
   const data = await getAttendance();
   if (!data[date]) data[date] = {};
@@ -192,6 +340,7 @@ export async function xacNhanKhongVang(studentId, date, buoi, tiet) {
   await saveAttendance(data);
   return { ok: true };
 }
+
 export async function xoaDiemDanhTheoNgay(studentId, date, buoi, tiet) {
   const data = await getAttendance();
   if (!data[date] || !data[date][studentId]) return;
@@ -219,39 +368,49 @@ export async function xoaDiemDanhTheoNgay(studentId, date, buoi, tiet) {
 }
 
 /**
- * Tự động chuyển VẮNG cho những tiết đã hết mà chưa chấm
- * CHỈ áp dụng cho tiết CÓ HỌC theo TKB
+ * Tự động chuyển VẮNG — CÓ CHECK MIỄN TRỪ
  */
 export async function tuDongChuyenVang() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = layNgayHomNay();
   const data = await getAttendance();
 
   if (!data[today]) data[today] = {};
 
   let coThayDoi = false;
 
-  // Lấy TKB của lớp hiện tại
   let tkbLop = null;
+  let maLopHienTai = null;
   try {
-    const maLop = localStorage.getItem("lop_dang_chon");
-    if (maLop) {
+    maLopHienTai = localStorage.getItem("lop_dang_chon");
+    if (maLopHienTai) {
       const { getTKB } = await import("./tkbStorage");
-      tkbLop = await getTKB(maLop);
+      tkbLop = await getTKB(maLopHienTai);
     }
   } catch (e) {
     console.warn("Không load được TKB:", e);
   }
 
-  // Nếu chưa có TKB → KHÔNG chuyển vắng
   if (!tkbLop) {
     console.log("Chưa có TKB → bỏ qua tuDongChuyenVang");
     return;
   }
 
-  // Hàm kiểm tra tiết có học không theo TKB
+  let mienTruCuaLop = {};
+  try {
+    const allMienTru = await getMienTru();
+    mienTruCuaLop = allMienTru[maLopHienTai] || {};
+  } catch (e) {
+    console.warn("Không load được miễn trừ:", e);
+  }
+
+  function buoiMienTru(buoi) {
+    if (!mienTruCuaLop[today]) return false;
+    return mienTruCuaLop[today].includes(buoi);
+  }
+
   function tietCoHoc(buoi, tiet) {
     const day = new Date().getDay();
-    if (day === 0) return false; // Chủ nhật
+    if (day === 0) return false;
     const thu = `thu${day + 1}`;
     const tkbThu = tkbLop[thu];
     if (!tkbThu) return false;
@@ -260,46 +419,49 @@ export async function tuDongChuyenVang() {
     return mangTiet && mangTiet[index] === true;
   }
 
-  // Lấy các tiết đã kết thúc
   const tietSangDaHet = layTietDaKetThuc("sang");
   const tietChieuDaHet = layTietDaKetThuc("chieu");
 
   students.forEach((hs) => {
     if (!data[today][hs.id]) data[today][hs.id] = {};
 
-    // Xử lý buổi sáng — CHỈ tiết có học
-    tietSangDaHet.forEach((t) => {
-      if (!tietCoHoc("sang", t.tiet)) return;
+    // Bỏ qua nếu buổi sáng được miễn trừ
+    if (!buoiMienTru("sang")) {
+      tietSangDaHet.forEach((t) => {
+        if (!tietCoHoc("sang", t.tiet)) return;
 
-      const keyTiet = `tiet${t.tiet}`;
-      if (!data[today][hs.id].sang) data[today][hs.id].sang = {};
-      if (!data[today][hs.id].sang[keyTiet]) {
-        data[today][hs.id].sang[keyTiet] = {
-          trangThai: "Vắng",
-          gioVao: null,
-          phutTre: null,
-          diemTru: -10,
-        };
-        coThayDoi = true;
-      }
-    });
+        const keyTiet = `tiet${t.tiet}`;
+        if (!data[today][hs.id].sang) data[today][hs.id].sang = {};
+        if (!data[today][hs.id].sang[keyTiet]) {
+          data[today][hs.id].sang[keyTiet] = {
+            trangThai: "Vắng",
+            gioVao: null,
+            phutTre: null,
+            diemTru: -10,
+          };
+          coThayDoi = true;
+        }
+      });
+    }
 
-    // Xử lý buổi chiều — CHỈ tiết có học
-    tietChieuDaHet.forEach((t) => {
-      if (!tietCoHoc("chieu", t.tiet)) return;
+    // Bỏ qua nếu buổi chiều được miễn trừ
+    if (!buoiMienTru("chieu")) {
+      tietChieuDaHet.forEach((t) => {
+        if (!tietCoHoc("chieu", t.tiet)) return;
 
-      const keyTiet = `tiet${t.tiet}`;
-      if (!data[today][hs.id].chieu) data[today][hs.id].chieu = {};
-      if (!data[today][hs.id].chieu[keyTiet]) {
-        data[today][hs.id].chieu[keyTiet] = {
-          trangThai: "Vắng",
-          gioVao: null,
-          phutTre: null,
-          diemTru: -10,
-        };
-        coThayDoi = true;
-      }
-    });
+        const keyTiet = `tiet${t.tiet}`;
+        if (!data[today][hs.id].chieu) data[today][hs.id].chieu = {};
+        if (!data[today][hs.id].chieu[keyTiet]) {
+          data[today][hs.id].chieu[keyTiet] = {
+            trangThai: "Vắng",
+            gioVao: null,
+            phutTre: null,
+            diemTru: -10,
+          };
+          coThayDoi = true;
+        }
+      });
+    }
   });
 
   if (coThayDoi) {
@@ -363,9 +525,6 @@ export async function tinhDiemTuan(tuanCode) {
   return Object.values(ketQua);
 }
 
-/**
- * Tính điểm lớp theo tuần
- */
 export async function tinhDiemLopTuan(tuanCode) {
   const dsHS = await tinhDiemTuan(tuanCode);
   let diemLop = 100;
@@ -387,9 +546,6 @@ export async function tinhDiemLopTuan(tuanCode) {
   };
 }
 
-/**
- * Tính thống kê cho tất cả học sinh trong 1 tháng
- */
 export async function tinhThongKeThang(thang, students) {
   const all = await getAttendance();
   const dsNgay = Object.keys(all).filter((ngay) => ngay.startsWith(thang));

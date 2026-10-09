@@ -5,6 +5,7 @@ import {
   themNgayNghi,
   xoaNgayNghi,
 } from "./ngayNghiStorage";
+import { xuatExcelTuan, xuatExcelThang } from "./xuatExcelThiDua";
 import { useStudents } from "./StudentsContext";
 import {
   DANH_SACH_VI_PHAM,
@@ -66,11 +67,9 @@ export default function TabThiDua() {
       const data = await getThiDuaTuan(maLop, tuan);
       setDuLieu(data);
 
-      // Tính điểm trừ tự động từ điểm danh (bỏ qua ngày nghỉ)
       const tuDong = await tinhDiemTruTuDong(tuan, students, maLop);
       setDiemTuDong(tuDong);
 
-      // Load danh sách ngày nghỉ
       const nghi = await getNgayNghi(maLop);
       setNgayNghi(nghi);
     } catch (err) {
@@ -150,6 +149,31 @@ export default function TabThiDua() {
       await loadData();
     } catch (err) {
       setMsg("❌ Lỗi: " + err.message);
+    }
+  }
+
+  // ============ XUẤT EXCEL ============
+  async function handleXuatTuan() {
+    try {
+      setMsg("⏳ Đang xuất Excel tuần...");
+      await xuatExcelTuan(maLop, tuan, students);
+      setMsg("✅ Đã xuất Excel tuần");
+      setTimeout(() => setMsg(""), 3000);
+    } catch (err) {
+      console.error(err);
+      setMsg("❌ Lỗi xuất Excel: " + err.message);
+    }
+  }
+
+  async function handleXuatThang() {
+    try {
+      setMsg("⏳ Đang xuất Excel tháng...");
+      await xuatExcelThang(maLop, tuan, students);
+      setMsg("✅ Đã xuất Excel tháng");
+      setTimeout(() => setMsg(""), 3000);
+    } catch (err) {
+      console.error(err);
+      setMsg("❌ Lỗi xuất Excel: " + err.message);
     }
   }
 
@@ -410,6 +434,18 @@ export default function TabThiDua() {
               style={{ background: "#f59e0b", flex: 1, minWidth: 150 }}
             >
               🚫 Ngày không tính điểm
+            </button>
+            <button
+              onClick={handleXuatTuan}
+              style={{ background: "#8b5cf6", flex: 1, minWidth: 150 }}
+            >
+              📥 Xuất Excel tuần
+            </button>
+            <button
+              onClick={handleXuatThang}
+              style={{ background: "#06b6d4", flex: 1, minWidth: 150 }}
+            >
+              📥 Xuất Excel tháng
             </button>
           </div>
 

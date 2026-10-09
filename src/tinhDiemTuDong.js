@@ -3,7 +3,7 @@
 //  - Vắng (không phép): -10đ/buổi
 //  - Vắng có phép: -5đ/buổi
 //  - Đi trễ: -3đ/tiết
-// CHỈ TÍNH TRONG THÁNG HIỆN TẠI (theo tháng của tuần đang xem)
+// TÍNH THEO TUẦN ĐANG XEM (không giới hạn tháng, tránh bug tuần bắc qua tháng)
 
 import { getAttendance } from "./storage";
 import { getNgayNghi, laNgayNghi } from "./ngayNghiStorage";
@@ -23,29 +23,30 @@ export async function tinhDiemTruTuDong(tuanCode, students, maLop) {
   const all = await getAttendance();
   const ngayNghi = maLop ? await getNgayNghi(maLop) : {};
 
-  const thangCuaTuan = start.getMonth();
-  const namCuaTuan = start.getFullYear();
-
+  // ⭐ CHỈ LỌC THEO start/end, KHÔNG LỌC THÁNG
+  // → Tránh bug tuần bắc qua 2 tháng (VD tuần 5: 03/10 → 09/10)
   const dsNgay = Object.keys(all).filter((ngay) => {
-    const d = new Date(ngay);
-    return (
-      d >= start &&
-      d <= end &&
-      d.getMonth() === thangCuaTuan &&
-      d.getFullYear() === namCuaTuan
-    );
+    const d = new Date(ngay + "T00:00:00");
+    return d >= start && d <= end;
   });
 
+  // Khởi tạo chi tiết cho TẤT CẢ HS trong lớp hiện tại
   const chiTiet = {};
   students.forEach((s) => {
     chiTiet[s.id] = { vang: 0, coPhep: 0, diTre: 0, diemTru: 0 };
   });
 
+  // Set mã HS của lớp hiện tại để lọc nhanh
+  const maHSCuaLop = new Set(students.map((s) => s.id));
+
   dsNgay.forEach((ngay) => {
     const dataNgay = all[ngay] || {};
 
-    students.forEach((s) => {
-      const hsData = dataNgay[s.id];
+    // Duyệt tất cả HS trong ngày, lọc chỉ lấy HS thuộc lớp hiện tại
+    Object.keys(dataNgay).forEach((maHS) => {
+      if (!maHSCuaLop.has(maHS)) return;
+
+      const hsData = dataNgay[maHS];
       if (!hsData) return;
 
       ["sang", "chieu"].forEach((buoi) => {
@@ -66,16 +67,16 @@ export async function tinhDiemTruTuDong(tuanCode, students, maLop) {
         });
 
         if (coVang) {
-          chiTiet[s.id].vang++;
-          chiTiet[s.id].diemTru -= 10;
+          chiTiet[maHS].vang++;
+          chiTiet[maHS].diemTru -= 10;
         } else if (coCoPhep) {
-          chiTiet[s.id].coPhep++;
-          chiTiet[s.id].diemTru -= 5;
+          chiTiet[maHS].coPhep++;
+          chiTiet[maHS].diemTru -= 5;
         }
 
         if (soLanTre > 0) {
-          chiTiet[s.id].diTre += soLanTre;
-          chiTiet[s.id].diemTru -= soLanTre * 3;
+          chiTiet[maHS].diTre += soLanTre;
+          chiTiet[maHS].diemTru -= soLanTre * 3;
         }
       });
     });
