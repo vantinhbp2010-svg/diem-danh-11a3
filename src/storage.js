@@ -164,6 +164,34 @@ export async function updateAttendance(studentId, date, buoi, tiet, trangThai, g
 /**
  * Xóa điểm danh 1 học sinh trong 1 ngày
  */
+/**
+ * GV xác nhận không vắng (có phép) → chuyển Vắng thành "Có phép"
+ * Điểm trừ = 0 (không trừ điểm)
+ */
+export async function xacNhanKhongVang(studentId, date, buoi, tiet) {
+  const data = await getAttendance();
+  if (!data[date]) data[date] = {};
+  if (!data[date][studentId]) data[date][studentId] = {};
+  if (!data[date][studentId][buoi]) data[date][studentId][buoi] = {};
+
+  const keyTiet = `tiet${tiet}`;
+  const cu = data[date][studentId][buoi][keyTiet];
+
+  if (!cu || cu.trangThai !== "Vắng") {
+    return { ok: false, message: "Chỉ xác nhận được khi đang Vắng" };
+  }
+
+  data[date][studentId][buoi][keyTiet] = {
+    trangThai: "Có phép",
+    gioVao: null,
+    phutTre: 0,
+    diemTru: -5,
+    ghiChu: "GV xác nhận vắng có phép",
+  };
+
+  await saveAttendance(data);
+  return { ok: true };
+}
 export async function xoaDiemDanhTheoNgay(studentId, date, buoi, tiet) {
   const data = await getAttendance();
   if (!data[date] || !data[date][studentId]) return;

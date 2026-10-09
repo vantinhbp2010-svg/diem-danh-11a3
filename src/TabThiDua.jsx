@@ -1,4 +1,10 @@
 import { useState, useEffect } from "react";
+import { tinhDiemTruTuDong } from "./tinhDiemTuDong";
+import {
+  getNgayNghi,
+  themNgayNghi,
+  xoaNgayNghi,
+} from "./ngayNghiStorage";
 import { useStudents } from "./StudentsContext";
 import {
   DANH_SACH_VI_PHAM,
@@ -19,12 +25,19 @@ import {
 import "./App.css";
 
 export default function TabThiDua() {
-  const { students } = useStudents();
+  const { students, maLop } = useStudents();
   const [tuan, setTuan] = useState(layTuanISO(new Date()));
   const [tab, setTab] = useState("lop");
   const [duLieu, setDuLieu] = useState(null);
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(true);
+  const [diemTuDong, setDiemTuDong] = useState({ diemTru: 0, chiTiet: {} });
+  const [ngayNghi, setNgayNghi] = useState({});
+  const [modalNgayNghi, setModalNgayNghi] = useState(false);
+  const [ngayNghiMoi, setNgayNghiMoi] = useState(
+    new Date().toISOString().slice(0, 10)
+  );
+  const [buoiNghiMoi, setBuoiNghiMoi] = useState("ca");
 
   const [selected, setSelected] = useState(students[0]?.id || "");
   const [modal, setModal] = useState(null);
@@ -41,13 +54,25 @@ export default function TabThiDua() {
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tuan]);
+  }, [tuan, maLop]);
 
   async function loadData() {
+    if (!maLop) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
-      const data = await getThiDuaTuan(tuan);
+      const data = await getThiDuaTuan(maLop, tuan);
       setDuLieu(data);
+
+      // Tính điểm trừ tự động từ điểm danh (bỏ qua ngày nghỉ)
+      const tuDong = await tinhDiemTruTuDong(tuan, students, maLop);
+      setDiemTuDong(tuDong);
+
+      // Load danh sách ngày nghỉ
+      const nghi = await getNgayNghi(maLop);
+      setNgayNghi(nghi);
     } catch (err) {
       console.error(err);
       setMsg("Lỗi: " + err.message);
@@ -56,18 +81,14 @@ export default function TabThiDua() {
     }
   }
 
-  // Chuyển tuần trước/sau
   function chuyenTuan(delta) {
-    const parts = tuan.split("-W");
+    const parts = tuan.split("-T");
     if (parts.length !== 2) return;
-
     let tuanSo = parseInt(parts[1]);
     const nam = parseInt(parts[0]);
-
     tuanSo += delta;
     if (tuanSo < 1) tuanSo = 1;
-
-    setTuan(`${nam}-W${String(tuanSo).padStart(2, "0")}`);
+    setTuan(`${nam}-T${String(tuanSo).padStart(2, "0")}`);
   }
 
   function veTuanHienTai() {
@@ -103,9 +124,9 @@ export default function TabThiDua() {
 
     try {
       if (modal.doiTuong === "lop") {
-        await themChoLop(tuan, item);
+        await themChoLop(maLop, tuan, item);
       } else {
-        await themChoCaNhan(tuan, selected, item);
+        await themChoCaNhan(maLop, tuan, selected, item);
       }
       setMsg("✅ Đã thêm");
       setModal(null);
@@ -122,9 +143,9 @@ export default function TabThiDua() {
     if (!window.confirm("Xóa mục này?")) return;
     try {
       if (doiTuong === "lop") {
-        await xoaCuaLop(tuan, index, loai);
+        await xoaCuaLop(maLop, tuan, index, loai);
       } else {
-        await xoaCuaCaNhan(tuan, selected, index, loai);
+        await xoaCuaCaNhan(maLop, tuan, selected, index, loai);
       }
       await loadData();
     } catch (err) {
@@ -132,10 +153,70 @@ export default function TabThiDua() {
     }
   }
 
-  if (loading || !duLieu) {
+  // ============ THÊM NGÀY NGHỈ ============
+  async function handleThemNgayNghi() {
+    if (!ngayNghiMoi) {
+      setMsg("❌ Chưa chọn ngày");
+      return;
+    }
+    try {
+      const moi = await themNgayNghi(maLop, ngayNghiMoi, buoiNghiMoi);
+      setNgayNghi(moi);
+      setMsg(
+        `✅ Đã đánh dấu nghỉ: ${ngayNghiMoi} (${
+          buoiNghiMoi === "ca"
+            ? "cả ngày"
+            : buoiNghiMoi === "sang"
+            ? "sáng"
+            : "chiều"
+        })`
+      );
+      setModalNgayNghi(false);
+      await loadData();
+      setTimeout(() => setMsg(""), 3000);
+    } catch (err) {
+      setMsg("❌ Lỗi: " + err.message);
+    }
+  }
+
+  async function handleXoaNgayNghi(ngay, buoi) {
+    if (
+      !window.confirm(
+        `Bỏ đánh dấu nghỉ ngày ${ngay} buổi ${
+          buoi === "sang" ? "sáng" : "chiều"
+        }?`
+      )
+    )
+      return;
+    try {
+      const moi = await xoaNgayNghi(maLop, ngay, buoi);
+      setNgayNghi(moi || {});
+      setMsg("✅ Đã bỏ đánh dấu nghỉ");
+      await loadData();
+      setTimeout(() => setMsg(""), 3000);
+    } catch (err) {
+      setMsg("❌ Lỗi: " + err.message);
+    }
+  }
+
+  if (!maLop) {
     return (
-      <p style={{ textAlign: "center", padding: 40 }}>⏳ Đang tải...</p>
+      <div
+        style={{
+          padding: 30,
+          background: "#fef3c7",
+          borderRadius: 12,
+          textAlign: "center",
+        }}
+      >
+        <b>⚠️ Chưa chọn lớp</b>
+        <p>Vào nhóm 👥 Học sinh → 📋 Quản lý lớp để tạo lớp trước.</p>
+      </div>
     );
+  }
+
+  if (loading || !duLieu) {
+    return <p style={{ textAlign: "center", padding: 40 }}>⏳ Đang tải...</p>;
   }
 
   const lopData = duLieu.lop || {
@@ -143,24 +224,36 @@ export default function TabThiDua() {
     viPham: [],
     khenThuong: [],
   };
-  const lopXL = xepLoai(lopData.diem);
+
+  const diemLopCuoi = lopData.diem + diemTuDong.diemTru;
+  const lopXL = xepLoai(diemLopCuoi);
 
   const hsData = duLieu.caNhan?.[selected] || {
     diem: DIEM_BAN_DAU,
     viPham: [],
     khenThuong: [],
   };
-  const hsXL = xepLoai(hsData.diem);
+
+  const chiTietHS = diemTuDong.chiTiet?.[selected] || {
+    vang: 0,
+    coPhep: 0,
+    diTre: 0,
+    diemTru: 0,
+  };
+  const diemHSCuoi = hsData.diem + chiTietHS.diemTru;
+  const hsXL = xepLoai(diemHSCuoi);
 
   const hs = students.find((s) => s.id === selected);
 
   const bxh = students
     .map((s) => {
       const d = duLieu.caNhan?.[s.id];
+      const diemNhapTay = d ? d.diem : DIEM_BAN_DAU;
+      const chiTiet = diemTuDong.chiTiet?.[s.id] || { diemTru: 0 };
       return {
         id: s.id,
         name: s.name,
-        diem: d ? d.diem : DIEM_BAN_DAU,
+        diem: diemNhapTay + chiTiet.diemTru,
       };
     })
     .sort((a, b) => b.diem - a.diem);
@@ -182,10 +275,7 @@ export default function TabThiDua() {
           </button>
           <button
             onClick={veTuanHienTai}
-            style={{
-              background: "#10b981",
-              padding: "8px 14px",
-            }}
+            style={{ background: "#10b981", padding: "8px 14px" }}
           >
             Tuần hiện tại
           </button>
@@ -255,7 +345,7 @@ export default function TabThiDua() {
                 color: lopXL.mau,
               }}
             >
-              {lopData.diem}
+              {diemLopCuoi}
             </p>
             <p
               style={{
@@ -276,15 +366,33 @@ export default function TabThiDua() {
             >
               Điểm chuẩn: {DIEM_BAN_DAU} / tuần
             </p>
+            <p
+              style={{
+                textAlign: "center",
+                color: "#dc2626",
+                fontSize: 14,
+                fontWeight: 700,
+                margin: "8px 0 0",
+              }}
+            >
+              🔻 Trừ tự động (điểm danh): {diemTuDong.diemTru}đ
+            </p>
           </div>
 
-          <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              marginBottom: 20,
+              flexWrap: "wrap",
+            }}
+          >
             <button
               onClick={() => {
                 setModal({ loai: "viPham", doiTuong: "lop" });
                 setChonMa("");
               }}
-              style={{ background: "#dc2626", flex: 1 }}
+              style={{ background: "#dc2626", flex: 1, minWidth: 150 }}
             >
               ➖ Thêm vi phạm lớp
             </button>
@@ -293,11 +401,79 @@ export default function TabThiDua() {
                 setModal({ loai: "khenThuong", doiTuong: "lop" });
                 setChonMa("");
               }}
-              style={{ background: "#10b981", flex: 1 }}
+              style={{ background: "#10b981", flex: 1, minWidth: 150 }}
             >
               ➕ Thêm khen thưởng lớp
             </button>
+            <button
+              onClick={() => setModalNgayNghi(true)}
+              style={{ background: "#f59e0b", flex: 1, minWidth: 150 }}
+            >
+              🚫 Ngày không tính điểm
+            </button>
           </div>
+
+          {/* Hiển thị danh sách ngày nghỉ */}
+          {Object.keys(ngayNghi).length > 0 && (
+            <div
+              style={{
+                padding: 15,
+                background: "#fef3c7",
+                borderRadius: 12,
+                marginBottom: 20,
+                borderLeft: "5px solid #f59e0b",
+              }}
+            >
+              <h4 style={{ margin: "0 0 10px", color: "#78350f" }}>
+                🚫 Ngày không tính điểm ({Object.keys(ngayNghi).length} ngày)
+              </h4>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 6,
+                }}
+              >
+                {Object.keys(ngayNghi)
+                  .sort()
+                  .map((ngay) =>
+                    ngayNghi[ngay].map((buoi) => (
+                      <div
+                        key={`${ngay}-${buoi}`}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          padding: "6px 12px",
+                          background: "white",
+                          borderRadius: 8,
+                          fontSize: 13,
+                        }}
+                      >
+                        <span>
+                          📅 <b>{ngay}</b> —{" "}
+                          {buoi === "sang"
+                            ? "🌅 Sáng"
+                            : buoi === "chieu"
+                            ? "🌆 Chiều"
+                            : buoi}
+                        </span>
+                        <button
+                          onClick={() => handleXoaNgayNghi(ngay, buoi)}
+                          style={{
+                            background: "#e74c3c",
+                            padding: "3px 8px",
+                            fontSize: 11,
+                          }}
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    ))
+                  )}
+              </div>
+            </div>
+          )}
 
           <h4>📋 Lịch sử vi phạm</h4>
           {lopData.viPham.length === 0 ? (
@@ -415,7 +591,7 @@ export default function TabThiDua() {
                 color: hsXL.mau,
               }}
             >
-              {hsData.diem}
+              {diemHSCuoi}
             </p>
             <p
               style={{
@@ -427,6 +603,34 @@ export default function TabThiDua() {
             >
               Xếp loại: {hsXL.ten}
             </p>
+
+            <div
+              style={{
+                marginTop: 15,
+                padding: 12,
+                background: "white",
+                borderRadius: 10,
+                fontSize: 13,
+                color: "#475569",
+                borderLeft: "4px solid #dc2626",
+              }}
+            >
+              <p style={{ margin: "4px 0" }}>
+                🔻 <b>Trừ tự động (điểm danh):</b> {chiTietHS.diemTru}đ
+              </p>
+              <p style={{ margin: "4px 0", fontSize: 12, color: "#64748b" }}>
+                • Vắng: {chiTietHS.vang || 0} buổi × 10đ ={" "}
+                {(chiTietHS.vang || 0) * 10}đ
+              </p>
+              <p style={{ margin: "4px 0", fontSize: 12, color: "#64748b" }}>
+                • Có phép: {chiTietHS.coPhep || 0} buổi × 5đ ={" "}
+                {(chiTietHS.coPhep || 0) * 5}đ
+              </p>
+              <p style={{ margin: "4px 0", fontSize: 12, color: "#64748b" }}>
+                • Đi trễ: {chiTietHS.diTre || 0} tiết × 3đ ={" "}
+                {(chiTietHS.diTre || 0) * 3}đ
+              </p>
+            </div>
           </div>
 
           <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
@@ -584,6 +788,54 @@ export default function TabThiDua() {
         </>
       )}
 
+      {/* MODAL NGÀY NGHỈ */}
+      {modalNgayNghi && (
+        <div className="modal-sua" onClick={() => setModalNgayNghi(false)}>
+          <div className="modal-sua-box" onClick={(e) => e.stopPropagation()}>
+            <h3>🚫 Đánh dấu ngày không tính điểm</h3>
+            <p style={{ textAlign: "center", color: "#64748b", fontSize: 13 }}>
+              Ngày này sẽ không bị trừ điểm vắng/trễ
+            </p>
+
+            <div className="sua-group">
+              <label>Chọn ngày:</label>
+              <input
+                type="date"
+                value={ngayNghiMoi}
+                onChange={(e) => setNgayNghiMoi(e.target.value)}
+              />
+            </div>
+
+            <div className="sua-group">
+              <label>Buổi:</label>
+              <select
+                value={buoiNghiMoi}
+                onChange={(e) => setBuoiNghiMoi(e.target.value)}
+              >
+                <option value="ca">🚫 Cả ngày</option>
+                <option value="sang">🌅 Chỉ Sáng</option>
+                <option value="chieu">🌆 Chỉ Chiều</option>
+              </select>
+            </div>
+
+            <div className="modal-buttons">
+              <button
+                onClick={() => setModalNgayNghi(false)}
+                style={{ background: "#94a3b8" }}
+              >
+                ❌ Hủy
+              </button>
+              <button
+                onClick={handleThemNgayNghi}
+                style={{ background: "#f59e0b" }}
+              >
+                🚫 Đánh dấu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODAL THÊM */}
       {modal && (
         <div className="modal-sua" onClick={() => setModal(null)}>
@@ -631,10 +883,7 @@ export default function TabThiDua() {
               >
                 ❌ Hủy
               </button>
-              <button
-                onClick={handleThem}
-                style={{ background: "#10b981" }}
-              >
+              <button onClick={handleThem} style={{ background: "#10b981" }}>
                 ✅ Lưu
               </button>
             </div>

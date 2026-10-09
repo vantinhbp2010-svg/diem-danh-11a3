@@ -11,6 +11,7 @@ import {
   updateAttendance,
   xoaDiemDanhTheoNgay,
   tinhThongKeThang,
+  xacNhanKhongVang
 } from "./storage";
 import { logout, getUser } from "./auth";
 import News from "./News";
@@ -129,6 +130,7 @@ export default function App() {
       let diemTru = 0;
       if (status === "Đi trễ") diemTru = -3;
       else if (status === "Vắng") diemTru = -10;
+      else if (status === "Có phép") diemTru = -5;
 
       data[todayStr][id][buoi][`tiet${tiet}`] = {
         trangThai: status,
@@ -146,7 +148,32 @@ export default function App() {
       setMsg("❌ Lỗi sửa: " + err.message);
     }
   }
+  // GV xác nhận "vắng có phép" → chỉ trừ 5đ (thay vì 10đ)
+  async function handleXacNhan(id, buoi, tiet) {
+    const hs = students.find((s) => s.id === id);
+    if (
+      !window.confirm(
+        `Xác nhận "${hs?.name}" VẮNG CÓ PHÉP tiết ${tiet} buổi ${
+          buoi === "sang" ? "sáng" : "chiều"
+        }?\n\n` +
+          `→ Chỉ trừ 5đ thay vì 10đ.`
+      )
+    )
+      return;
 
+    try {
+      const res = await xacNhanKhongVang(id, today, buoi, tiet);
+      if (res.ok) {
+        setMsg(`✅ Đã xác nhận: ${hs?.name} — vắng có phép (chỉ trừ 5đ)`);
+        await refresh();
+      } else {
+        setMsg(`⚠️ ${res.message}`);
+      }
+      setTimeout(() => setMsg(""), 3000);
+    } catch (err) {
+      setMsg("❌ Lỗi: " + err.message);
+    }
+  }
   async function handleXoaTatCa(id) {
     const hs = students.find((s) => s.id === id);
     if (
@@ -410,6 +437,7 @@ export default function App() {
               onXoa={handleXoa}
               onXoaTatCa={handleXoaTatCa}
               onSua={handleSuaHomNay}
+              onXacNhan={handleXacNhan}
             />
           )}
 
@@ -522,6 +550,7 @@ function TabDiemDanh({
   onXoa,
   onXoaTatCa,
   onSua,
+  onXacNhan,
 }) {
   const [tietHienTai, setTietHienTai] = useState(null);
   const [tietThuCong, setTietThuCong] = useState(1);
@@ -581,7 +610,7 @@ function TabDiemDanh({
 
   const coTiet = tietCoHoc();
 
-  const dem = { "Đúng giờ": 0, "Đi trễ": 0, "Vắng": 0 };
+  const dem = { "Đúng giờ": 0, "Đi trễ": 0, "Vắng": 0, "Có phép": 0 };
   students.forEach((s) => {
     const a = (attendance[s.id] || {})[buoiHienTai]?.[`tiet${tiet}`];
     if (!a) {
@@ -742,6 +771,18 @@ function TabDiemDanh({
         <div className="card vang">
           ❌ Vắng <b>{dem["Vắng"]}</b>
         </div>
+        {dem["Có phép"] > 0 && (
+          <div
+            className="card"
+            style={{
+              background: "linear-gradient(135deg, #dbeafe, #bfdbfe)",
+              color: "#1e40af",
+              borderBottom: "4px solid #3b82f6",
+            }}
+          >
+            📝 Có phép (-5đ) <b>{dem["Có phép"]}</b>
+          </div>
+        )}
       </div>
 
       <table>
@@ -763,6 +804,8 @@ function TabDiemDanh({
             const a = (attendance[s.id] || {})[buoiHienTai]?.[`tiet${tiet}`];
             let status = coTiet ? "❌ Vắng" : "📭 Tiết trống";
             let cls = coTiet ? "vang" : "";
+            let laVang = !a && coTiet; // Đang bị vắng (chưa chấm)
+
             if (a) {
               if (a.trangThai === "Đúng giờ") {
                 status = "✅ Đúng giờ";
@@ -770,15 +813,23 @@ function TabDiemDanh({
               } else if (a.trangThai === "Đi trễ") {
                 status = `🟡 Đi trễ (${a.phutTre}p)`;
                 cls = "tre";
+              } else if (a.trangThai === "Có phép") {
+                status = "📝 Có phép (-5đ)";
+                cls = "dunggio";
+              } else if (a.trangThai === "Vắng") {
+                status = "❌ Vắng";
+                cls = "vang";
+                laVang = true;
               }
             }
+
             return (
               <tr key={s.id} className={cls}>
                 <td>{i + 1}</td>
                 <td>{s.id}</td>
                 <td>{s.name}</td>
                 <td>{status}</td>
-                <td>{a ? a.gioVao : "—"}</td>
+                <td>{a ? a.gioVao || "—" : "—"}</td>
                 <td>
                   {!a && coTiet && (
                     <button onClick={() => onMark(s.id, buoiHienTai, tiet)}>
@@ -787,6 +838,20 @@ function TabDiemDanh({
                   )}
                   {!a && !coTiet && (
                     <span style={{ color: "#94a3b8", fontSize: 13 }}>—</span>
+                  )}
+                  {laVang && onXacNhan && (
+                    <button
+                      onClick={() => onXacNhan(s.id, buoiHienTai, tiet)}
+                      style={{
+                        background: "#10b981",
+                        marginLeft: 4,
+                        padding: "5px 10px",
+                        fontSize: 13,
+                      }}
+                      title="Vắng có phép → chỉ trừ 5đ"
+                    >
+                      📝 Có phép
+                    </button>
                   )}
                   {a && (
                     <button
@@ -848,6 +913,7 @@ function TabDiemDanh({
                 <option value="Đúng giờ">✅ Đúng giờ</option>
                 <option value="Đi trễ">🟡 Đi trễ</option>
                 <option value="Vắng">❌ Vắng</option>
+                <option value="Có phép">📝 Có phép (không trừ)</option>
               </select>
             </div>
 
