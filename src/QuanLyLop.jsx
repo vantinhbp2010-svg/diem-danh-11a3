@@ -4,7 +4,8 @@ import { saveDSLop, xoaLop } from "./lopStorage";
 import "./App.css";
 
 export default function QuanLyLop() {
-  const { students, reload, maLop, danhSachLop, setStudents } = useStudents();
+  const { students, reload, maLop, danhSachLop, setStudents, chonLop } =
+    useStudents();
   const [msg, setMsg] = useState("");
   const [preview, setPreview] = useState([]);
   const [tenLopMoi, setTenLopMoi] = useState("");
@@ -288,6 +289,11 @@ export default function QuanLyLop() {
             {dsLopKeys.map((k) => (
               <div
                 key={k}
+                onClick={() => {
+                  if (k !== maLop) {
+                    chonLop(k);
+                  }
+                }}
                 style={{
                   padding: "10px 16px",
                   background: k === maLop ? "#667eea" : "white",
@@ -296,6 +302,28 @@ export default function QuanLyLop() {
                   border: "2px solid #e5e7eb",
                   fontWeight: 600,
                   fontSize: 14,
+                  cursor: k === maLop ? "default" : "pointer",
+                  transition: "all 0.2s",
+                  boxShadow:
+                    k === maLop
+                      ? "0 4px 12px rgba(102, 126, 234, 0.4)"
+                      : "0 2px 4px rgba(0,0,0,0.05)",
+                }}
+                onMouseEnter={(e) => {
+                  if (k !== maLop) {
+                    e.currentTarget.style.transform = "translateY(-2px)";
+                    e.currentTarget.style.boxShadow =
+                      "0 6px 16px rgba(102, 126, 234, 0.3)";
+                    e.currentTarget.style.borderColor = "#667eea";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (k !== maLop) {
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.boxShadow =
+                      "0 2px 4px rgba(0,0,0,0.05)";
+                    e.currentTarget.style.borderColor = "#e5e7eb";
+                  }
                 }}
               >
                 Lớp {k} ({danhSachLop[k].soHS} HS)
