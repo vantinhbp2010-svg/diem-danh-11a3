@@ -45,7 +45,7 @@ export default function Khach() {
           📋{" "}
           {chuaCoLop
             ? "Chưa có danh sách học sinh"
-            : `Điểm danh lớp ${maLop}`}
+            : `Điểm danh lớp ${danhSachLop[maLop]?.tenHienThi || maLop}`}
         </h1>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {!chuaCoLop && Object.keys(danhSachLop).length > 0 && (
@@ -65,7 +65,7 @@ export default function Khach() {
             >
               {Object.keys(danhSachLop).map((k) => (
                 <option key={k} value={k}>
-                  Lớp {k} ({danhSachLop[k].soHS} HS)
+                  {danhSachLop[k].tenHienThi || `Lớp ${k}`} ({danhSachLop[k].soHS} HS)
                 </option>
               ))}
             </select>

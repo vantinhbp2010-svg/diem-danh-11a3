@@ -18,14 +18,13 @@ import News from "./News";
 import TabThiDua from "./TabThiDua";
 import QuanLyLop from "./QuanLyLop";
 import TabThoiKhoaBieu from "./TabThoiKhoaBieu";
-import TabDashboard from "./TabDashboard";
 import TabThongBao from "./TabThongBao";
 import { useStudents } from "./StudentsContext";
 import "./App.css";
 
 export default function App() {
   const [nhom, setNhom] = useState("diemdanh");
-  const [tabCon, setTabCon] = useState("dashboard");
+  const [tabCon, setTabCon] = useState("homnay");
   const [attendance, setAttendance] = useState({});
   const [today, setToday] = useState("");
   const [msg, setMsg] = useState("");
@@ -545,7 +544,7 @@ export default function App() {
   return (
     <div className="container">
       <div className="header-row">
-        <h1>📋 Điểm danh lớp {maLop}</h1>
+        <h1>📋 Điểm danh lớp {danhSachLop[maLop]?.tenHienThi || maLop}</h1>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {Object.keys(danhSachLop).length > 0 && (
             <select
@@ -564,7 +563,7 @@ export default function App() {
             >
               {Object.keys(danhSachLop).map((k) => (
                 <option key={k} value={k}>
-                  Lớp {k} ({danhSachLop[k].soHS} HS)
+                  {danhSachLop[k].tenHienThi || `Lớp ${k}`} ({danhSachLop[k].soHS} HS)
                 </option>
               ))}
             </select>
@@ -628,12 +627,6 @@ export default function App() {
         <>
           <div className="tabcon">
             <button
-              className={tabCon === "dashboard" ? "active" : ""}
-              onClick={() => setTabCon("dashboard")}
-            >
-              📊 Dashboard
-            </button>
-            <button
               className={tabCon === "homnay" ? "active" : ""}
               onClick={() => setTabCon("homnay")}
             >
@@ -670,10 +663,6 @@ export default function App() {
               📢 Thông báo
             </button>
           </div>
-
-          {tabCon === "dashboard" && (
-            <TabDashboard students={students} attendance={attendance} today={today} />
-          )}
 
           {tabCon === "homnay" && (
             <TabDiemDanh

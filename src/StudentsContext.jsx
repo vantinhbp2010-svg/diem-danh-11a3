@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react";
-import { getDSLop, getDanhSachLop } from "./lopStorage";
+import { getDSLop, getDanhSachLop, doiTenLop } from "./lopStorage";
 // ✅ ĐÃ XÓA: import { students as defaultStudents } from "./data";
 
 const StudentsContext = createContext(null);
@@ -76,6 +76,12 @@ export function StudentsProvider({ children }) {
     await loadDS();
   }
 
+  // ✅ Đổi tên hiển thị lớp mà không thay đổi mã lớp gốc
+  async function doiTen(maLopMoi, tenMoi) {
+    await doiTenLop(maLopMoi, tenMoi);
+    await loadDS();
+  }
+
   return (
     <StudentsContext.Provider
       value={{
@@ -86,6 +92,7 @@ export function StudentsProvider({ children }) {
         chonLop,
         reload,
         setStudents,
+        doiTen,
       }}
     >
       {children}

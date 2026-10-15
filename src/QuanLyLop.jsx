@@ -4,8 +4,15 @@ import { saveDSLop, xoaLop } from "./lopStorage";
 import "./App.css";
 
 export default function QuanLyLop() {
-  const { students, reload, maLop, danhSachLop, setStudents, chonLop } =
-    useStudents();
+  const {
+    students,
+    reload,
+    maLop,
+    danhSachLop,
+    setStudents,
+    chonLop,
+    doiTen,
+  } = useStudents();
   const [msg, setMsg] = useState("");
   const [tenLopMoi, setTenLopMoi] = useState("");
   const [dangXuLy, setDangXuLy] = useState(false);
@@ -13,6 +20,9 @@ export default function QuanLyLop() {
 
   const [showThem, setShowThem] = useState(false);
   const [tenHSMoi, setTenHSMoi] = useState("");
+  // ✅ State đổi tên lớp
+  const [showDoiTen, setShowDoiTen] = useState(false);
+  const [tenLopMoiDoi, setTenLopMoiDoi] = useState("");
 
   function sinhMaHS(danhSachHienCo, lopCode) {
     if (!lopCode) lopCode = "XX";
@@ -158,6 +168,34 @@ export default function QuanLyLop() {
     }
   }
 
+  // ✅ Mở modal đổi tên — prefill tên hiện tại
+  function moDoiTen() {
+    setTenLopMoiDoi(danhSachLop[maLop]?.tenHienThi || maLop);
+    setShowDoiTen(true);
+  }
+
+  // ✅ Lưu tên hiển thị mới cho lớp
+  async function handleDoiTen() {
+    if (!maLop) return;
+    const tenMoi = tenLopMoiDoi.trim();
+    if (!tenMoi) {
+      setMsg("❌ Chưa nhập tên mới");
+      return;
+    }
+    try {
+      setDangXuLy(true);
+      await doiTen(maLop, tenMoi);
+      setMsg(`✅ Đã đổi tên lớp thành: ${tenMoi}`);
+      setShowDoiTen(false);
+      setTenLopMoiDoi("");
+      setTimeout(() => setMsg(""), 3000);
+    } catch (err) {
+      setMsg("❌ Lỗi: " + err.message);
+    } finally {
+      setDangXuLy(false);
+    }
+  }
+
   async function handleXoaLop() {
     if (!maLop) {
       setMsg("❌ Chưa có lớp nào");
@@ -208,12 +246,28 @@ export default function QuanLyLop() {
           borderRadius: 10,
           fontSize: 14,
           borderLeft: `5px solid ${maLop ? "#10b981" : "#f59e0b"}`,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 10,
         }}
       >
         {maLop ? (
           <>
-            ✅ Đang xem lớp <b>{maLop}</b> — có <b>{students.length}</b> học
-            sinh.
+            <span>
+              ✅ Đang xem lớp <b>{danhSachLop[maLop]?.tenHienThi || maLop}</b> — có <b>{students.length}</b> học sinh.
+            </span>
+            <button
+              onClick={moDoiTen}
+              style={{
+                background: "#3b82f6",
+                padding: "6px 12px",
+                fontSize: 13,
+              }}
+            >
+              ✏️ Đổi tên
+            </button>
           </>
         ) : (
           <>
@@ -222,6 +276,54 @@ export default function QuanLyLop() {
           </>
         )}
       </p>
+
+      {showDoiTen && (
+        <div
+          className="modal-sua"
+          onClick={() => setShowDoiTen(false)}
+          style={{ zIndex: 9999 }}
+        >
+          <div className="modal-sua-box" onClick={(e) => e.stopPropagation()}>
+            <h3>✏️ Đổi tên lớp</h3>
+            <p style={{ textAlign: "center", color: "#64748b" }}>
+              Mã lớp: <b>{maLop}</b>
+            </p>
+
+            <div className="sua-group">
+              <label>Tên hiển thị mới:</label>
+              <input
+                type="text"
+                value={tenLopMoiDoi}
+                onChange={(e) => setTenLopMoiDoi(e.target.value)}
+                placeholder="VD: 11A3 - Chuyên Toán"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleDoiTen();
+                }}
+                autoFocus
+              />
+              <p style={{ fontSize: 12, color: "#64748b", marginTop: 6 }}>
+                💡 Tên này sẽ hiện ở tiêu đề và dropdown chọn lớp. Mã lớp không đổi.
+              </p>
+            </div>
+
+            <div className="modal-buttons">
+              <button
+                onClick={() => setShowDoiTen(false)}
+                style={{ background: "#94a3b8" }}
+              >
+                ❌ Hủy
+              </button>
+              <button
+                onClick={handleDoiTen}
+                style={{ background: "#10b981" }}
+                disabled={dangXuLy || !tenLopMoiDoi.trim()}
+              >
+                {dangXuLy ? "⏳ Đang lưu..." : "✅ Lưu"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {msg && <div className="msg">{msg}</div>}
 
@@ -253,7 +355,7 @@ export default function QuanLyLop() {
                   cursor: k === maLop ? "default" : "pointer",
                 }}
               >
-                Lớp {k} ({danhSachLop[k].soHS} HS)
+                {danhSachLop[k].tenHienThi || `Lớp ${k}`} ({danhSachLop[k].soHS} HS)
               </div>
             ))}
           </div>
