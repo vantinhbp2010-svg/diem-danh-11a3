@@ -1,13 +1,13 @@
 import { createContext, useContext, useState, useEffect } from "react";
-import { students as defaultStudents } from "./data";
 import { getDSLop, getDanhSachLop } from "./lopStorage";
+// ✅ ĐÃ XÓA: import { students as defaultStudents } from "./data";
 
 const StudentsContext = createContext(null);
 
 const KEY_LOP = "lop_dang_chon";
 
 export function StudentsProvider({ children }) {
-  const [students, setStudents] = useState(defaultStudents);
+  const [students, setStudents] = useState([]);   // ✅ ĐỔI defaultStudents → []
   const [loading, setLoading] = useState(true);
   const [maLop, setMaLop] = useState("");
   const [danhSachLop, setDanhSachLop] = useState({});
@@ -21,37 +21,33 @@ export function StudentsProvider({ children }) {
     try {
       setLoading(true);
 
-      // Lấy danh sách lớp
       const ds = await getDanhSachLop();
       setDanhSachLop(ds);
 
-      // Lớp đang chọn (lưu trong localStorage)
       const lopDaChon = localStorage.getItem(KEY_LOP) || "";
       let maLopDung = lopDaChon;
 
-      // Nếu lớp đã chọn không có trong danh sách → chọn lớp đầu tiên
       if (!maLopDung || !ds[maLopDung]) {
         const dsKeys = Object.keys(ds);
         maLopDung = dsKeys.length > 0 ? dsKeys[0] : "";
+        if (maLopDung) localStorage.setItem(KEY_LOP, maLopDung);
       }
 
       setMaLop(maLopDung);
 
-      // Load DS học sinh
       if (maLopDung) {
         const dsHS = await getDSLop(maLopDung);
         if (dsHS && dsHS.length > 0) {
           setStudents(dsHS);
         } else {
-          setStudents(defaultStudents);
+          setStudents([]);
         }
       } else {
-        // Chưa có lớp nào → dùng danh sách mặc định
-        setStudents(defaultStudents);
+        setStudents([]);
       }
     } catch (err) {
       console.error("Lỗi load DS:", err);
-      setStudents(defaultStudents);
+      setStudents([]);
     } finally {
       setLoading(false);
     }
@@ -67,7 +63,7 @@ export function StudentsProvider({ children }) {
       if (dsHS && dsHS.length > 0) {
         setStudents(dsHS);
       } else {
-        setStudents(defaultStudents);
+        setStudents([]);
       }
     } catch (err) {
       console.error("Lỗi chọn lớp:", err);

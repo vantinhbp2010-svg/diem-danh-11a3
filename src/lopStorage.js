@@ -86,22 +86,36 @@ export async function xoaLop(maLop) {
   }
 
   // Bước 5: Xóa khuôn mặt của HS lớp này (diemdanh/faces)
+  // Xóa theo CẢ 2 format mã HS: "11A3-001" và "HS001"
   try {
     const { doc: docFn, getDoc: getDocFn, setDoc: setDocFn } = await import("firebase/firestore");
     const facesRef = docFn(db, "diemdanh", "faces");
     const facesSnap = await getDocFn(facesRef);
     const facesData = facesSnap.exists() ? facesSnap.data().data || {} : {};
-    let coXoaMat = false;
 
+    // Tập hợp mã HS cần xóa (cả 2 format)
+    const maHSCanXoa = new Set();
+    maHSList.forEach((ma) => {
+      maHSCanXoa.add(ma);                                    // "11A3-001"
+      const soCuoi = String(ma).match(/(\d+)$/);
+      if (soCuoi) maHSCanXoa.add(`HS${soCuoi[1]}`);          // "HS001"
+    });
+
+    console.log("🗑️ Mã HS cần xóa khuôn mặt:", [...maHSCanXoa]);
+
+    let soMatDaXoa = 0;
     Object.keys(facesData).forEach((maHS) => {
-      if (maHSSet.has(maHS)) {
+      if (maHSCanXoa.has(maHS)) {
         delete facesData[maHS];
-        coXoaMat = true;
+        soMatDaXoa++;
       }
     });
 
-    if (coXoaMat) {
+    if (soMatDaXoa > 0) {
       await setDocFn(facesRef, { data: facesData });
+      console.log(`✅ Đã xóa ${soMatDaXoa} khuôn mặt`);
+    } else {
+      console.log("ℹ️ Không có khuôn mặt nào cần xóa");
     }
   } catch (e) {
     console.warn("Lỗi xóa faces:", e);
@@ -150,4 +164,22 @@ export async function xoaLop(maLop) {
   }
 
   return { ok: true, soHSXoa: maHSList.length };
+}
+/**
+ * Đổi tên hiển thị của lớp
+ * @param maLop "11A3"
+ * @param tenMoi "11A3 - Chuyên Toán"
+ */
+export async function doiTenLop(maLop, tenMoi) {
+  if (!maLop) throw new Error("Thiếu mã lớp");
+  const ds = await getDanhSachLop();
+  if (!ds[maLop]) throw new Error("Lớp không tồn tại");
+
+  ds[maLop] = {
+    ...ds[maLop],
+    tenHienThi: tenMoi.trim() || maLop,
+    updatedAt: new Date().toISOString(),
+  };
+  await saveDanhSachLop(ds);
+  return ds[maLop];
 }

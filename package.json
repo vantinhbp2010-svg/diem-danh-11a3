@@ -7,17 +7,24 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "powershell -File scripts/deploy.ps1"
   },
   "dependencies": {
     "@google/genai": "^2.27.0",
+    "chart.js": "^4.5.1",
     "face-api.js": "^0.22.2",
     "firebase": "^12.19.0",
+    "firebase-admin": "^14.5.0",
     "html5-qrcode": "^2.3.8",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.9",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.8",
+    "react-chartjs-2": "^5.3.1",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.4",
+    "vite-plugin-pwa": "^2.0.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

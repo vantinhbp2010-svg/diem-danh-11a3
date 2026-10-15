@@ -36,13 +36,19 @@ export default function Khach() {
   }
 
   const total = students.length;
+  const chuaCoLop = !maLop || students.length === 0;
 
   return (
     <div className="container">
       <div className="header-row">
-        <h1>📋 Điểm danh {maLop ? `lớp ${maLop}` : "lớp 11A3"}</h1>
+        <h1>
+          📋{" "}
+          {chuaCoLop
+            ? "Chưa có danh sách học sinh"
+            : `Điểm danh lớp ${maLop}`}
+        </h1>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {Object.keys(danhSachLop).length > 0 && (
+          {!chuaCoLop && Object.keys(danhSachLop).length > 0 && (
             <select
               value={maLop}
               onChange={(e) => chonLop(e.target.value)}
@@ -70,55 +76,112 @@ export default function Khach() {
         </div>
       </div>
 
-      <p style={{ background: "#dbeafe", padding: 12, borderRadius: 8 }}>
-        👋 Trang này để <b>xem bảng điểm danh</b> và <b>bản tin lớp</b>. Học
-        sinh có thể đăng tin — tin sẽ chờ giáo viên duyệt.
-      </p>
-
-      <div className="tabs">
-        <button
-          className={tab === "bang" ? "active" : ""}
-          onClick={() => setTab("bang")}
-        >
-          📋 Xem điểm danh
-        </button>
-        <button
-          className={tab === "news" ? "active" : ""}
-          onClick={() => setTab("news")}
-        >
-          📰 Bản tin lớp
-        </button>
-      </div>
-
-      {tab === "bang" && (
+      {/* ✅ MÀN HÌNH CHƯA CÓ DS */}
+      {chuaCoLop ? (
         <>
-          <div className="chon-buoi">
-            <span>Chọn buổi:</span>
-            <button
-              className={buoiDangChon === "sang" ? "active" : ""}
-              onClick={() => setBuoiDangChon("sang")}
+          <div
+            style={{
+              textAlign: "center",
+              padding: "60px 24px",
+              background: "#f8fafc",
+              borderRadius: 16,
+              border: "2px dashed #cbd5e1",
+              margin: "20px 0",
+            }}
+          >
+            <div style={{ fontSize: 64, marginBottom: 16 }}>📋</div>
+            <h2
+              style={{
+                fontSize: 22,
+                color: "#1e40af",
+                margin: "0 0 12px",
+                fontWeight: 700,
+              }}
             >
-              🌅 Sáng (7h00 — trễ sau 7h45)
-            </button>
-            <button
-              className={buoiDangChon === "chieu" ? "active" : ""}
-              onClick={() => setBuoiDangChon("chieu")}
+              Chưa có danh sách học sinh
+            </h2>
+            <p
+              style={{
+                color: "#64748b",
+                fontSize: 15,
+                marginBottom: 0,
+                maxWidth: 480,
+                marginLeft: "auto",
+                marginRight: "auto",
+                lineHeight: 1.6,
+              }}
             >
-              🌆 Chiều (13h30 — trễ sau 14h15)
+              Giáo viên chưa nhập danh sách lớp. Vui lòng liên hệ giáo viên chủ
+              nhiệm để được cập nhật.
+            </p>
+          </div>
+
+          {/* Vẫn xem được bản tin */}
+          <div className="tabs">
+            <button
+              className={tab === "news" ? "active" : ""}
+              onClick={() => setTab("news")}
+            >
+              📰 Bản tin lớp
             </button>
           </div>
 
-          <TabBangKhach
-            students={students}
-            attendance={attendance}
-            today={today}
-            total={total}
-            buoi={buoiDangChon}
-          />
+          {tab === "news" && <News laGiaoVien={false} tenNguoiDung="" />}
+        </>
+      ) : (
+        <>
+          {/* ✅ CÓ DS → hiện đầy đủ */}
+          <p style={{ background: "#dbeafe", padding: 12, borderRadius: 8 }}>
+            👋 Trang này để <b>xem bảng điểm danh</b> và <b>bản tin lớp</b>. Học
+            sinh có thể đăng tin — tin sẽ chờ giáo viên duyệt.
+          </p>
+
+          <div className="tabs">
+            <button
+              className={tab === "bang" ? "active" : ""}
+              onClick={() => setTab("bang")}
+            >
+              📋 Xem điểm danh
+            </button>
+            <button
+              className={tab === "news" ? "active" : ""}
+              onClick={() => setTab("news")}
+            >
+              📰 Bản tin lớp
+            </button>
+          </div>
+
+          {tab === "bang" && (
+            <>
+              <div className="chon-buoi">
+                <span>Chọn buổi:</span>
+                <button
+                  className={buoiDangChon === "sang" ? "active" : ""}
+                  onClick={() => setBuoiDangChon("sang")}
+                >
+                  🌅 Sáng (7h00 — trễ sau 7h45)
+                </button>
+                <button
+                  className={buoiDangChon === "chieu" ? "active" : ""}
+                  onClick={() => setBuoiDangChon("chieu")}
+                >
+                  🌆 Chiều (13h30 — trễ sau 14h15)
+                </button>
+              </div>
+
+              <TabBangKhach
+                students={students}
+                attendance={attendance}
+                today={today}
+                total={total}
+                buoi={buoiDangChon}
+              />
+            </>
+          )}
+
+          {tab === "news" && <News laGiaoVien={false} tenNguoiDung="" />}
         </>
       )}
-
-      {tab === "news" && <News laGiaoVien={false} tenNguoiDung="" />}
     </div>
   );
 }

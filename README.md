@@ -1,16 +1,42 @@
-# React + Vite
+# Điểm danh 11A3
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Ứng dụng quản lý điểm danh, lịch trình, thi đua và báo cáo học sinh lớp 11A3.
 
-Currently, two official plugins are available:
+## Tính năng chính
+- Điểm danh theo buổi, tiết, có tính ngày, giờ và điểm trừ.
+- Dashboard chuyên cần 7 ngày gần nhất với biểu đồ báo cáo.
+- Tab thông báo phụ huynh với mẫu tin nhắn và lưu lịch sử gửi.
+- QR Code để in cho học sinh và quét điểm danh nhanh.
+- PWA offline và hỗ trợ cài đặt lên màn hình chính.
+- Hỗ trợ deploy lên Cloudflare Pages.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Cài đặt
 
-## React Compiler
+```bash
+npm install
+npm run dev
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Build
 
-## Expanding the ESLint configuration
+```bash
+npm run build
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Deploy
+
+```bash
+npm run deploy
+```
+
+Đảm bảo Git remote đã được cấu hình và các secrets Cloudflare đã được thêm vào GitHub Actions.
+
+## Cấu trúc quan trọng
+- `src/App.jsx` — giao diện chính và các tab.
+- `src/TabDashboard.jsx` — dashboard chuyên cần.
+- `src/TabThongBao.jsx` — thông báo phụ huynh.
+- `src/TabQRCode.jsx` — QR code và quét điểm danh.
+- `public/_redirects` — route SPA cho Cloudflare Pages.
+- `wrangler.toml` — cấu hình Pages.
+- `.github/workflows/deploy.yml` — tự động deploy.
+

@@ -185,12 +185,20 @@ export function tinhTrangThai(buoi, tiet, gioQuet) {
   }
 
   const phutVao = gioToPhut(tietInfo.vao);
+  const phutRa = gioToPhut(tietInfo.ra);
   const phutQuet = gioToPhut(gioQuet);
 
+  // ✅ Sau khi hết tiết → VẮNG (không phải đi trễ)
+  if (phutQuet > phutRa) {
+    return { trangThai: "Vắng", phutTre: 0, diemTru: -10 };
+  }
+
+  // ✅ Trong tiết, đúng giờ
   if (phutQuet <= phutVao) {
     return { trangThai: "Đúng giờ", phutTre: 0, diemTru: 0 };
   }
 
+  // ✅ Trong tiết, vào muộn → Đi trễ (chỉ trễ tối đa 45p)
   const phutTre = phutQuet - phutVao;
   return { trangThai: "Đi trễ", phutTre, diemTru: -3 };
 }

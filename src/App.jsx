@@ -18,12 +18,14 @@ import News from "./News";
 import TabThiDua from "./TabThiDua";
 import QuanLyLop from "./QuanLyLop";
 import TabThoiKhoaBieu from "./TabThoiKhoaBieu";
+import TabDashboard from "./TabDashboard";
+import TabThongBao from "./TabThongBao";
 import { useStudents } from "./StudentsContext";
 import "./App.css";
 
 export default function App() {
   const [nhom, setNhom] = useState("diemdanh");
-  const [tabCon, setTabCon] = useState("homnay");
+  const [tabCon, setTabCon] = useState("dashboard");
   const [attendance, setAttendance] = useState({});
   const [today, setToday] = useState("");
   const [msg, setMsg] = useState("");
@@ -299,6 +301,87 @@ export default function App() {
     }
   }
 
+  async function handleBackupFirebase() {
+    try {
+      const { db } = await import("./firebase");
+      const { collection, doc, getDoc, getDocs } = await import("firebase/firestore");
+
+      const snapshot = { generatedAt: new Date().toISOString(), app: "diem-danh-11a3" };
+      const primaryDocs = ["all", "faces", "thiDua", "thoiKhoaBieu", "ngayNghi"];
+
+      for (const name of primaryDocs) {
+        const ref = doc(db, "diemdanh", name);
+        const data = await getDoc(ref);
+        snapshot[`diemdanh_${name}`] = data.exists() ? data.data() : null;
+      }
+
+      const lopSnap = await getDocs(collection(db, "lop"));
+      snapshot.lop = {};
+      lopSnap.forEach((entry) => {
+        snapshot.lop[entry.id] = entry.data();
+      });
+
+      const blob = new Blob([JSON.stringify(snapshot, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `backup-firebase-${new Date().toISOString().slice(0, 16).replace(":", "").replace(":", "")}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setMsg("✅ Đã xuất backup Firestore");
+      setTimeout(() => setMsg(""), 2500);
+    } catch (error) {
+      console.error("Backup lỗi:", error);
+      setMsg("❌ Backup thất bại: " + error.message);
+      setTimeout(() => setMsg(""), 3000);
+    }
+  }
+
+  async function handleRestoreFirebase(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const confirmed = window.confirm("📥 Tải dữ liệu Firestore từ file backup lên máy chủ? Hành động này sẽ ghi đè dữ liệu hiện tại.");
+    if (!confirmed) {
+      event.target.value = "";
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      const payload = JSON.parse(text);
+      const { db } = await import("./firebase");
+      const { doc, setDoc } = await import("firebase/firestore");
+
+      const diemdanhKeys = ["all", "faces", "thiDua", "thoiKhoaBieu", "ngayNghi"];
+      for (const key of diemdanhKeys) {
+        const value = payload[`diemdanh_${key}`];
+        if (value !== undefined && value !== null) {
+          await setDoc(doc(db, "diemdanh", key), value);
+        }
+      }
+
+      const lopData = payload.lop || {};
+      for (const [lopKey, value] of Object.entries(lopData)) {
+        await setDoc(doc(db, "lop", lopKey), value);
+      }
+
+      setMsg("✅ Đã phục hồi dữ liệu Firestore");
+      setTimeout(() => setMsg(""), 2500);
+      window.location.reload();
+    } catch (error) {
+      console.error("Restore lỗi:", error);
+      setMsg("❌ Restore thất bại: " + error.message);
+      setTimeout(() => setMsg(""), 3000);
+    } finally {
+      event.target.value = "";
+    }
+  }
+
   function handleLogout() {
     if (window.confirm("Đăng xuất?")) {
       logout();
@@ -308,10 +391,161 @@ export default function App() {
 
   const total = students.length;
 
+  // ✅ Nếu chưa có lớp HOẶC lớp rỗng → hiện thông báo
+  if (!maLop || students.length === 0) {
+    return (
+      <div className="container">
+        <div className="header-row">
+          <h1>📋 Chưa có danh sách học sinh</h1>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <button
+              onClick={() => navigate("/khach")}
+              style={{ background: "#10b981" }}
+            >
+              👀 Trang khách
+            </button>
+            <button onClick={handleLogout} style={{ background: "#64748b" }}>
+              🚪 Đăng xuất ({user})
+            </button>
+          </div>
+        </div>
+
+        <div
+          style={{
+            textAlign: "center",
+            padding: "60px 24px",
+            background: "#f8fafc",
+            borderRadius: 16,
+            border: "2px dashed #cbd5e1",
+            margin: "30px 0",
+          }}
+        >
+          <div style={{ fontSize: 64, marginBottom: 16 }}>📋</div>
+          <h2
+            style={{
+              fontSize: 22,
+              color: "#1e40af",
+              margin: "0 0 12px",
+              fontWeight: 700,
+            }}
+          >
+            Chưa có danh sách lớp
+          </h2>
+          <p
+            style={{
+              color: "#64748b",
+              fontSize: 15,
+              marginBottom: 24,
+              maxWidth: 480,
+              marginLeft: "auto",
+              marginRight: "auto",
+              lineHeight: 1.6,
+            }}
+          >
+            Để bắt đầu sử dụng, bạn cần <b>tạo lớp</b> và <b>nhập danh sách
+            học sinh</b> từ file Excel.
+          </p>
+          <button
+            onClick={() => {
+              setNhom("hocsinh");
+              setTabCon("quanly");
+            }}
+            style={{
+              background: "linear-gradient(135deg, #2563eb, #7c3aed)",
+              fontSize: 16,
+              padding: "14px 28px",
+              fontWeight: 700,
+            }}
+          >
+            ➕ Tạo lớp & nhập danh sách
+          </button>
+        </div>
+
+        {/* Vẫn cho phép vào nhóm Học sinh để tạo lớp */}
+        <div className="nhom-tabs">
+          <button
+            className={nhom === "hocsinh" ? "active" : ""}
+            onClick={() => {
+              setNhom("hocsinh");
+              setTabCon("quanly");
+            }}
+          >
+            👥 Học sinh
+          </button>
+          <button
+            className={nhom === "news" ? "active" : ""}
+            onClick={() => setNhom("news")}
+          >
+            📰 Bản tin
+          </button>
+          <button
+            className={nhom === "thidua" ? "active" : ""}
+            onClick={() => setNhom("thidua")}
+          >
+            🎯 Thi đua
+          </button>
+          <button
+            className={nhom === "caidat" ? "active" : ""}
+            onClick={() => setNhom("caidat")}
+          >
+            ⚙️ Cài đặt
+          </button>
+        </div>
+
+        {nhom === "hocsinh" && (
+          <>
+            <div className="tabcon">
+              <button
+                className={tabCon === "dangky" ? "active" : ""}
+                onClick={() => setTabCon("dangky")}
+              >
+                🧑 Đăng ký mặt
+              </button>
+              <button
+                className={tabCon === "quanly" ? "active" : ""}
+                onClick={() => setTabCon("quanly")}
+              >
+                📋 Quản lý lớp
+              </button>
+              <button
+                className={tabCon === "tkb" ? "active" : ""}
+                onClick={() => setTabCon("tkb")}
+              >
+                📅 Thời khóa biểu
+              </button>
+            </div>
+            {tabCon === "quanly" && <QuanLyLop />}
+          </>
+        )}
+
+        {nhom === "news" && <News laGiaoVien={true} tenNguoiDung={user} />}
+        {nhom === "thidua" && <TabThiDua />}
+        {nhom === "caidat" && (
+          <div className="caidat-box">
+            <h3>⚙️ Cài đặt & Báo cáo</h3>
+            <div className="caidat-grid">
+              <button onClick={handleLogout} className="caidat-btn">
+                🚪 Đăng xuất
+              </button>
+            </div>
+            <div className="caidat-info">
+              <p>
+                <b>Tài khoản:</b> {user}
+              </p>
+              <p>
+                <b>Trạng thái:</b> Chưa có lớp
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="container">
       <div className="header-row">
-        <h1>📋 Điểm danh {maLop ? `lớp ${maLop}` : "lớp 11A3"}</h1>
+        <h1>📋 Điểm danh lớp {maLop}</h1>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {Object.keys(danhSachLop).length > 0 && (
             <select
@@ -394,6 +628,12 @@ export default function App() {
         <>
           <div className="tabcon">
             <button
+              className={tabCon === "dashboard" ? "active" : ""}
+              onClick={() => setTabCon("dashboard")}
+            >
+              📊 Dashboard
+            </button>
+            <button
               className={tabCon === "homnay" ? "active" : ""}
               onClick={() => setTabCon("homnay")}
             >
@@ -423,7 +663,17 @@ export default function App() {
             >
               📊 Thống kê
             </button>
+            <button
+              className={tabCon === "thongbao" ? "active" : ""}
+              onClick={() => setTabCon("thongbao")}
+            >
+              📢 Thông báo
+            </button>
           </div>
+
+          {tabCon === "dashboard" && (
+            <TabDashboard students={students} attendance={attendance} today={today} />
+          )}
 
           {tabCon === "homnay" && (
             <TabDiemDanh
@@ -464,6 +714,10 @@ export default function App() {
               duLieuThongKe={duLieuThongKe}
               onDoiThang={loadThongKe}
             />
+          )}
+
+          {tabCon === "thongbao" && (
+            <TabThongBao students={students} maLop={maLop} selectedDate={today} />
           )}
         </>
       )}
@@ -509,6 +763,13 @@ export default function App() {
         <div className="caidat-box">
           <h3>⚙️ Cài đặt & Báo cáo</h3>
           <div className="caidat-grid">
+            <button onClick={handleBackupFirebase} className="caidat-btn">
+              💾 Backup
+            </button>
+            <label className="caidat-btn" style={{ cursor: "pointer", textAlign: "center" }}>
+              📥 Restore
+              <input type="file" accept="application/json" onChange={handleRestoreFirebase} style={{ display: "none" }} />
+            </label>
             <button onClick={exportExcel} className="caidat-btn">
               📊 Xuất Excel hôm nay
             </button>
@@ -944,6 +1205,7 @@ function TabDiemDanh({
    TAB CAMERA AI
    ============================================================= */
 function TabCameraAI({ students, onMark }) {
+  const { maLop } = useStudents();
   const [running, setRunning] = useState(false);
   const [msg, setMsg] = useState("");
   const [lastLog, setLastLog] = useState([]);
@@ -959,6 +1221,7 @@ function TabCameraAI({ students, onMark }) {
   const tietTimerRef = useRef(null);
   const videoRef = useRef(null);
   const streamRef = useRef(null);
+  const dangXuLyRef = useRef(false);   // ✅ Thêm dòng này — tránh overlap khi detect chậm
 
   function addLog(text) {
     const time = new Date().toTimeString().slice(0, 8);
@@ -980,29 +1243,52 @@ function TabCameraAI({ students, onMark }) {
 
   useEffect(() => {
     async function loadTKB() {
+      if (!maLop) return;
       try {
-        const maLopHienTai = localStorage.getItem("lop_dang_chon");
-        if (!maLopHienTai) return;
         const { getTKB } = await import("./tkbStorage");
-        const tkb = await getTKB(maLopHienTai);
+        const tkb = await getTKB(maLop);
+        console.log("✅ Load TKB lớp", maLop, ":", tkb);
         setTkbLop(tkb);
       } catch (err) {
         console.error("Lỗi load TKB:", err);
       }
     }
     loadTKB();
-  }, []);
+  }, [maLop]);
 
   function tietCoHoc(buoi, tiet) {
-    if (!tkbLop) return false;
+    if (!tkbLop) {
+      console.log("❌ tietCoHoc: tkbLop null");
+      return false;
+    }
     const day = new Date().getDay();
     if (day === 0) return false;
     const thu = `thu${day + 1}`;
     const tkbThu = tkbLop[thu];
-    if (!tkbThu) return false;
-    const mangTiet = buoi === "sang" ? tkbThu.sang : tkbThu.chieu;
+    if (!tkbThu) {
+      console.log("❌ Không có", thu, "| keys:", Object.keys(tkbLop));
+      return false;
+    }
+
+    let mangTiet = buoi === "sang" ? tkbThu.sang : tkbThu.chieu;
+    if (!mangTiet) return false;
+
+    // ✅ Nếu là object {t0, t1,...} → chuyển thành mảng
+    if (!Array.isArray(mangTiet)) {
+      mangTiet = Object.keys(mangTiet)
+        .sort((a, b) => parseInt(a.slice(1)) - parseInt(b.slice(1)))
+        .map((k) => mangTiet[k] === true);
+    }
+
     const index = buoi === "sang" ? tiet - 1 : tiet - 2;
-    return mangTiet && mangTiet[index] === true;
+    const ketQua = mangTiet[index] === true;
+    console.log(`🔍 tietCoHoc(${buoi}, ${tiet}):`, {
+      thu,
+      index,
+      giaTri: mangTiet[index],
+      ketQua,
+    });
+    return ketQua;
   }
 
   async function start() {
@@ -1059,65 +1345,98 @@ function TabCameraAI({ students, onMark }) {
     }
 
     const TINY_OPTIONS = new faceapi.TinyFaceDetectorOptions({
-      inputSize: 224,
+      inputSize: 416,        // ✅ Tăng từ 224 → 416 để bắt được nhiều mặt nhỏ
       scoreThreshold: 0.4,
     });
 
     faceIntervalRef.current = setInterval(async () => {
+      // ✅ Chống overlap: nếu lần trước chưa xử lý xong thì bỏ qua
+      if (dangXuLyRef.current) return;
+
       const now = Date.now();
-      if (now - lastDetectRef.current < 500) return;
+      if (now - lastDetectRef.current < 700) return;   // ✅ Tăng 500 → 700ms cho kịp xử lý nhiều mặt
       lastDetectRef.current = now;
 
       const videoEl = videoRef.current;
       if (!videoEl) return;
       if (videoEl.readyState < 2) return;
       if (!videoEl.videoWidth || !videoEl.videoHeight) return;
-      if (videoEl.videoWidth === 0 || videoEl.videoHeight === 0) return;
 
+      dangXuLyRef.current = true;
       try {
-        const det = await faceapi
-          .detectSingleFace(videoEl, TINY_OPTIONS)
+        // ✅ ĐỔI: detectAllFaces + withFaceDescriptors
+        const detections = await faceapi
+          .detectAllFaces(videoEl, TINY_OPTIONS)
           .withFaceLandmarks()
-          .withFaceDescriptor();
+          .withFaceDescriptors();
 
-        if (det) {
+        if (!detections || detections.length === 0) {
+          dangXuLyRef.current = false;
+          return;
+        }
+
+        // Lấy thời điểm hiện tại 1 lần dùng cho tất cả
+        const { tietDangDienRaTheoGio } = await import("./thoiKhoaBieu");
+        const t = tietDangDienRaTheoGio();
+
+        // Lặp qua TẤT CẢ khuôn mặt phát hiện được
+        for (const det of detections) {
           const best = matcherRef.current.findBestMatch(det.descriptor);
-          if (best.label !== "unknown") {
-            const hs = students.find((s) => s.id === best.label);
-            if (hs && !markedInSessionRef.current.has(hs.id)) {
-              markedInSessionRef.current.add(hs.id);
 
-              const { tietDangDienRaTheoGio } = await import("./thoiKhoaBieu");
-              const t = tietDangDienRaTheoGio();
+          if (best.label === "unknown") continue;
 
-              if (!t) {
-                addLog(`⏰ ${hs.name} — Chưa tới giờ vào tiết`);
-                return;
-              }
+          const hs = students.find((s) => s.id === best.label);
+          if (!hs) continue;
 
-              if (!tietCoHoc(t.buoi, t.tiet)) {
-                addLog(`📭 ${hs.name} — Tiết ${t.tiet} không có học`);
-                return;
-              }
+          // Bỏ qua nếu đã chấm trong phiên này
+          if (markedInSessionRef.current.has(hs.id)) continue;
 
-              const res = await onMark(hs.id, t.buoi, t.tiet);
-              setSoNhanDien((c) => c + 1);
-              addLog(
-                `🤖 ${hs.name} (${Math.round(
-                  (1 - best.distance) * 100
-                )}%) — Tiết ${t.tiet}${
-                  res?.ok
-                    ? ` (${res.trangThai}${
-                        res.phutTre > 0 ? `, trễ ${res.phutTre}p` : ""
-                      })`
-                    : ""
-                }`
-              );
+          if (!t) {
+            // Chỉ log 1 lần cho HS đầu tiên (tránh spam log)
+            if (markedInSessionRef.current.size === 0) {
+              addLog(`⏰ Chưa tới giờ vào tiết`);
             }
+            markedInSessionRef.current.add(hs.id);   // ✅ Đánh dấu để không log lặp
+            continue;
           }
+
+          if (!tietCoHoc(t.buoi, t.tiet)) {
+            if (!markedInSessionRef.current.has(hs.id + "_noTiet")) {
+              addLog(`📭 ${hs.name} — Tiết ${t.tiet} không có học`);
+              markedInSessionRef.current.add(hs.id + "_noTiet");
+            }
+            continue;
+          }
+
+          // ✅ Đánh dấu TRƯỚC khi await để tránh chấm trùng
+          markedInSessionRef.current.add(hs.id);
+
+          const res = await onMark(hs.id, t.buoi, t.tiet);
+          if (res?.ok) {
+            setSoNhanDien((c) => c + 1);
+          }
+
+          addLog(
+            `🤖 ${hs.name} (${Math.round(
+              (1 - best.distance) * 100
+            )}%) — Tiết ${t.tiet}${
+              res?.ok
+                ? ` (${res.trangThai}${
+                    res.phutTre > 0 ? `, trễ ${res.phutTre}p` : ""
+                  })`
+                : ` — ${res?.message || "lỗi"}`
+            }`
+          );
+        }
+
+        // Log số mặt detect được trong frame này (mỗi 3s để đỡ spam)
+        if (detections.length > 1 && now % 3000 < 700) {
+          addLog(`👥 Phát hiện ${detections.length} khuôn mặt`);
         }
       } catch (e) {
         console.warn("Lỗi detect:", e);
+      } finally {
+        dangXuLyRef.current = false;
       }
     }, 500);
   }

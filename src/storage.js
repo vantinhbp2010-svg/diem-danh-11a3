@@ -1,6 +1,5 @@
 import { db } from "./firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { students } from "./data";
 import { tinhTrangThai, tietDaHet, layTietDaKetThuc, TKB_SANG, TKB_CHIEU } from "./thoiKhoaBieu";
 
 function layNgayHomNay() {
