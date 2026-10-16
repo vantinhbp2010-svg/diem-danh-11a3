@@ -3,7 +3,7 @@ import { isLoggedIn } from "./auth";
 
 export default function ProtectedRoute() {
   if (!isLoggedIn()) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/" replace />;
   }
   return <Outlet />;
 }

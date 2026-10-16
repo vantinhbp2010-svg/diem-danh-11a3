@@ -384,7 +384,7 @@ export default function App() {
   function handleLogout() {
     if (window.confirm("Đăng xuất?")) {
       logout();
-      navigate("/login");
+      navigate("/");
     }
   }
 

@@ -57,12 +57,13 @@ createRoot(document.getElementById("root")).render(
     <StudentsProvider>
       <BrowserRouter>
         <Routes>
+          <Route path="/" element={<Login />} />
           <Route path="/khach" element={<Khach />} />
           <Route path="/login" element={<Login />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/diemdanhhocsinhlop11A3" element={<App />} />
           </Route>
-          <Route path="*" element={<Navigate to="/khach" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <ChatBot />
         <PWABanner />

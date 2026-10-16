@@ -1,13 +1,20 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { login } from "./auth";
+import { isLoggedIn, login } from "./auth";
 import "./App.css";
 
 export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isLoggedIn()) {
+      navigate("/diemdanhhocsinhlop11A3", { replace: true });
+    }
+  }, [navigate]);
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -21,6 +28,10 @@ export default function Login() {
 
   return (
     <div className="login-page">
+      <Link to="/khach" className="login-home-link">
+        ← Xem với tư cách học sinh
+      </Link>
+
       {/* Cột trái — giới thiệu */}
       <div className="login-intro">
         <div className="login-logo">📋</div>
@@ -63,43 +74,70 @@ export default function Login() {
       {/* Cột phải — form đăng nhập */}
       <div className="login-form-side">
         <div className="login-form-box">
-          <h2>🔐 Đăng nhập</h2>
+          <h2>
+            <span className="login-lock" aria-hidden="true">🔐</span>
+            <span>Đăng nhập</span>
+          </h2>
           <p className="login-subtitle">Nhập tài khoản để tiếp tục</p>
 
           <form onSubmit={handleSubmit}>
             <div className="input-group">
-              <label>Tên đăng nhập</label>
-              <input
-                type="text"
-                placeholder="Ví dụ: giaovien"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-                autoFocus
-              />
+              <label htmlFor="login-username">Tên đăng nhập</label>
+              <div className="input-control">
+                <span className="input-icon" aria-hidden="true">👤</span>
+                <input
+                  id="login-username"
+                  type="text"
+                  aria-label="Tên đăng nhập"
+                  placeholder="Ví dụ: giaovien"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  required
+                  autoFocus
+                  autoComplete="username"
+                />
+              </div>
             </div>
 
             <div className="input-group">
-              <label>Mật khẩu</label>
-              <input
-                type="password"
-                placeholder="Nhập mật khẩu"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+              <label htmlFor="login-password">Mật khẩu</label>
+              <div className="input-control">
+                <span className="input-icon" aria-hidden="true">🔒</span>
+                <input
+                  id="login-password"
+                  type={passwordVisible ? "text" : "password"}
+                  aria-label="Mật khẩu"
+                  placeholder="Nhập mật khẩu"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  className="password-toggle"
+                  aria-label={passwordVisible ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                  title={passwordVisible ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                  aria-pressed={passwordVisible}
+                  onClick={() => setPasswordVisible((visible) => !visible)}
+                >
+                  {passwordVisible ? "Ẩn" : "Hiện"}
+                </button>
+              </div>
             </div>
 
             <button type="submit" className="btn-login">
-              🚀 Đăng nhập
+              <span className="login-rocket" aria-hidden="true">🚀</span>
+              Đăng nhập
             </button>
           </form>
 
-          {error && <div className="error">{error}</div>}
+          {error && <div className="error" role="alert">{error}</div>}
 
           <div className="login-hint">
             <p>
-              💡 Tài khoản mặc định: <b>giaovien</b> / <b>123456</b>
+              <span className="hint-icon" aria-hidden="true">💡</span>
+              Tài khoản mặc định: <b>giaovien</b> / <b>123456</b>
             </p>
           </div>
 
@@ -112,6 +150,7 @@ export default function Login() {
           </Link>
         </div>
       </div>
+      <span className="login-version">v1.0.0</span>
     </div>
   );
 }
