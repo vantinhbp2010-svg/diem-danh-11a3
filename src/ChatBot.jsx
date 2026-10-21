@@ -14,7 +14,7 @@ export default function ChatBot() {
     {
       vai: "bot",
       noiDung:
-        "👋 Xin chào! Mình là trợ lý AI của Trường THPT Bình Long.\n\nEm có thể hỏi mình về **nội quy nhà trường** hoặc nhờ mình **giải toán** nhé!\n\nVí dụ: Giờ vào học là mấy giờ? · Đồng phục quy định thế nào? · Giải phương trình `x^2 - 4 = 0` · Tính `√9` 🌸",
+        "👋 Xin chào! Mình là trợ lý AI của Trường THPT Bình Long.\n\nEm có thể hỏi mình về **nội quy nhà trường** như:\n• Giờ vào học là mấy giờ?\n• Đồng phục quy định thế nào?\n• Đi trễ bị trừ bao nhiêu điểm?\n\nHoặc nếu em cần tính toán, mình cũng sẵn sàng giúp nhé! 🌸",
     },
   ]);
   const [dangGoi, setDangGoi] = useState(false);

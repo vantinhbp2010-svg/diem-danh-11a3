@@ -18,17 +18,6 @@ export default async function handler(req, res) {
   try {
     const contents = [];
 
-    if (systemPrompt) {
-      contents.push({
-        role: "user",
-        parts: [{ text: systemPrompt }],
-      });
-      contents.push({
-        role: "model",
-        parts: [{ text: "Đã hiểu. Tôi sẽ trả lời theo nội quy trường." }],
-      });
-    }
-
     if (lichSu && Array.isArray(lichSu)) {
       lichSu.forEach((item) => {
         contents.push({
@@ -50,7 +39,13 @@ export default async function handler(req, res) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ contents }),
+        body: JSON.stringify({
+          systemInstruction: systemPrompt
+            ? { parts: [{ text: systemPrompt }] }
+            : undefined,
+          contents,
+          generationConfig: { maxOutputTokens: 512 },
+        }),
       }
     );
 
