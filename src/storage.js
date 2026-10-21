@@ -1,14 +1,15 @@
 import { db } from "./firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { tinhTrangThai, tietDaHet, layTietDaKetThuc, TKB_SANG, TKB_CHIEU } from "./thoiKhoaBieu";
-
-function layNgayHomNay() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${dd}`;
-}
+import {
+  tinhTrangThai,
+  tietDaHet,
+  layTietDaKetThuc,
+  layNgayHomNay,
+  layGioPhutHienTai,
+  layThuHienTai,
+  TKB_SANG,
+  TKB_CHIEU,
+} from "./thoiKhoaBieu";
 
 export async function getAttendance() {
   const ref = doc(db, "diemdanh", "all");
@@ -40,8 +41,7 @@ export async function markAttendance(studentId, buoi, tiet) {
     };
   }
 
-  const now = new Date();
-  const gioQuet = now.toTimeString().slice(0, 5);
+  const gioQuet = layGioPhutHienTai();
   const kq = tinhTrangThai(buoi, tiet, gioQuet);
 
   data[today][studentId][buoi][keyTiet] = {
@@ -223,9 +223,8 @@ export async function tuDongChuyenVang() {
   }
 
   function tietCoHoc(buoi, tiet) {
-    const day = new Date().getDay();
-    if (day === 0) return false;
-    const thu = `thu${day + 1}`;
+    const thu = layThuHienTai();
+    if (!thu) return false;
     const tkbThu = tkbLop[thu];
     if (!tkbThu) return false;
     const mangTiet = buoi === "sang" ? tkbThu.sang : tkbThu.chieu;

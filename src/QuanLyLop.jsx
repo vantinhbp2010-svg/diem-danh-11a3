@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { useStudents } from "./StudentsContext";
+import ModalPortal from "./ModalPortal";
 import { saveDSLop, xoaLop } from "./lopStorage";
 import "./App.css";
 
@@ -278,12 +279,12 @@ export default function QuanLyLop() {
       </p>
 
       {showDoiTen && (
-        <div
-          className="modal-sua"
-          onClick={() => setShowDoiTen(false)}
-          style={{ zIndex: 9999 }}
-        >
-          <div className="modal-sua-box" onClick={(e) => e.stopPropagation()}>
+        <ModalPortal>
+          <div
+            className="modal-sua"
+            onClick={() => setShowDoiTen(false)}
+          >
+            <div className="modal-sua-box" onClick={(e) => e.stopPropagation()}>
             <h3>✏️ Đổi tên lớp</h3>
             <p style={{ textAlign: "center", color: "#64748b" }}>
               Mã lớp: <b>{maLop}</b>
@@ -321,8 +322,9 @@ export default function QuanLyLop() {
                 {dangXuLy ? "⏳ Đang lưu..." : "✅ Lưu"}
               </button>
             </div>
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {msg && <div className="msg">{msg}</div>}

@@ -1,6 +1,20 @@
 import { useState, useEffect, useRef } from "react";
+import {
+  AnimatePresence,
+  animate,
+  MotionConfig,
+  motion,
+  useMotionValue,
+  useTransform,
+} from "framer-motion";
 import * as XLSX from "xlsx";
 import { useNavigate } from "react-router-dom";
+import ModalPortal from "./ModalPortal";
+import {
+  layGioPhutHienTai,
+  layNgayHomNay,
+  layThuHienTai,
+} from "./thoiKhoaBieu";
 import {
   getAttendance,
   markAttendance,
@@ -18,7 +32,6 @@ import News from "./News";
 import TabThiDua from "./TabThiDua";
 import QuanLyLop from "./QuanLyLop";
 import TabThoiKhoaBieu from "./TabThoiKhoaBieu";
-import TabThongBao from "./TabThongBao";
 import { useStudents } from "./StudentsContext";
 import "./App.css";
 
@@ -29,7 +42,7 @@ export default function App() {
   const [today, setToday] = useState("");
   const [msg, setMsg] = useState("");
   const [buoiDangChon, setBuoiDangChon] = useState(() => {
-    const gio = new Date().getHours();
+    const gio = Number(layGioPhutHienTai().slice(0, 2));
     return gio >= 12 ? "chieu" : "sang";
   });
 
@@ -37,8 +50,7 @@ export default function App() {
   const [attendanceNgay, setAttendanceNgay] = useState({});
   const [danhSachNgay, setDanhSachNgay] = useState([]);
   const [thangThongKe, setThangThongKe] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    return layNgayHomNay().slice(0, 7);
   });
   const [duLieuThongKe, setDuLieuThongKe] = useState(null);
 
@@ -47,7 +59,7 @@ export default function App() {
   const { students, maLop, danhSachLop, chonLop } = useStudents();
 
   useEffect(() => {
-    const d = new Date().toISOString().slice(0, 10);
+    const d = layNgayHomNay();
     setToday(d);
     loadData();
 
@@ -62,7 +74,7 @@ export default function App() {
   async function loadData() {
     try {
       const data = await getAttendance();
-      const d = new Date().toISOString().slice(0, 10);
+      const d = layNgayHomNay();
       setAttendance(data[d] || {});
     } catch (err) {
       console.error("Lỗi tải dữ liệu:", err);
@@ -73,7 +85,9 @@ export default function App() {
   async function refresh() {
     try {
       const data = await getAttendance();
-      setAttendance(data[today] || {});
+      const currentDate = layNgayHomNay();
+      setToday(currentDate);
+      setAttendance(data[currentDate] || {});
     } catch (err) {
       console.error(err);
     }
@@ -97,6 +111,7 @@ export default function App() {
       return res;
     } catch (err) {
       setMsg("Lỗi: " + err.message);
+      return { ok: false, message: err.message };
     }
   }
 
@@ -123,7 +138,7 @@ export default function App() {
   async function handleSuaHomNay(id, buoi, tiet, status, time) {
     try {
       const data = await getAttendance();
-      const todayStr = new Date().toISOString().slice(0, 10);
+      const todayStr = layNgayHomNay();
       if (!data[todayStr]) data[todayStr] = {};
       if (!data[todayStr][id]) data[todayStr][id] = {};
       if (!data[todayStr][id][buoi]) data[todayStr][id][buoi] = {};
@@ -204,7 +219,7 @@ export default function App() {
     try {
       const ds = await getDanhSachNgay();
       setDanhSachNgay(ds);
-      const ngay = ngayXem || new Date().toISOString().slice(0, 10);
+      const ngay = ngayXem || layNgayHomNay();
       if (!ngayXem) setNgayXem(ngay);
       const data = await getAttendanceByDate(ngay);
       setAttendanceNgay(data);
@@ -393,7 +408,8 @@ export default function App() {
   // ✅ Nếu chưa có lớp HOẶC lớp rỗng → hiện thông báo
   if (!maLop || students.length === 0) {
     return (
-      <div className="container">
+      <MotionConfig reducedMotion="user">
+        <div className="container">
         <div className="header-row">
           <h1>📋 Chưa có danh sách học sinh</h1>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -491,58 +507,106 @@ export default function App() {
           </button>
         </div>
 
-        {nhom === "hocsinh" && (
-          <>
-            <div className="tabcon">
-              <button
-                className={tabCon === "dangky" ? "active" : ""}
-                onClick={() => setTabCon("dangky")}
-              >
-                🧑 Đăng ký mặt
-              </button>
-              <button
-                className={tabCon === "quanly" ? "active" : ""}
-                onClick={() => setTabCon("quanly")}
-              >
-                📋 Quản lý lớp
-              </button>
-              <button
-                className={tabCon === "tkb" ? "active" : ""}
-                onClick={() => setTabCon("tkb")}
-              >
-                📅 Thời khóa biểu
-              </button>
-            </div>
-            {tabCon === "quanly" && <QuanLyLop />}
-          </>
-        )}
-
-        {nhom === "news" && <News laGiaoVien={true} tenNguoiDung={user} />}
-        {nhom === "thidua" && <TabThiDua />}
-        {nhom === "caidat" && (
-          <div className="caidat-box">
-            <h3>⚙️ Cài đặt & Báo cáo</h3>
-            <div className="caidat-grid">
-              <button onClick={handleLogout} className="caidat-btn">
-                🚪 Đăng xuất
-              </button>
-            </div>
-            <div className="caidat-info">
-              <p>
-                <b>Tài khoản:</b> {user}
-              </p>
-              <p>
-                <b>Trạng thái:</b> Chưa có lớp
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
+        <AnimatePresence mode="wait" initial={false}>
+          {nhom === "hocsinh" && (
+            <motion.div
+              key="hocsinh"
+              initial={{ opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -24 }}
+              transition={{ duration: 0.22 }}
+            >
+              <div className="tabcon">
+                <button
+                  className={tabCon === "dangky" ? "active" : ""}
+                  onClick={() => setTabCon("dangky")}
+                >
+                  🧑 Đăng ký mặt
+                </button>
+                <button
+                  className={tabCon === "quanly" ? "active" : ""}
+                  onClick={() => setTabCon("quanly")}
+                >
+                  📋 Quản lý lớp
+                </button>
+                <button
+                  className={tabCon === "tkb" ? "active" : ""}
+                  onClick={() => setTabCon("tkb")}
+                >
+                  📅 Thời khóa biểu
+                </button>
+              </div>
+              <AnimatePresence mode="wait" initial={false}>
+                {tabCon === "quanly" && (
+                  <motion.div
+                    key="quanly"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <QuanLyLop />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          )}
+          {nhom === "news" && (
+            <motion.div
+              key="news"
+              initial={{ opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -24 }}
+              transition={{ duration: 0.22 }}
+            >
+              <News laGiaoVien={true} tenNguoiDung={user} />
+            </motion.div>
+          )}
+          {nhom === "thidua" && (
+            <motion.div
+              key="thidua"
+              initial={{ opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -24 }}
+              transition={{ duration: 0.22 }}
+            >
+              <TabThiDua />
+            </motion.div>
+          )}
+          {nhom === "caidat" && (
+            <motion.div
+              key="caidat"
+              initial={{ opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -24 }}
+              transition={{ duration: 0.22 }}
+              className="caidat-box"
+            >
+              <h3>⚙️ Cài đặt & Báo cáo</h3>
+              <div className="caidat-grid">
+                <button onClick={handleLogout} className="caidat-btn">
+                  🚪 Đăng xuất
+                </button>
+              </div>
+              <div className="caidat-info">
+                <p>
+                  <b>Tài khoản:</b> {user}
+                </p>
+                <p>
+                  <b>Trạng thái:</b> Chưa có lớp
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        </div>
+      </MotionConfig>
     );
   }
 
   return (
-    <div className="container">
+    <MotionConfig reducedMotion="user">
+      <div className="container">
       <div className="header-row">
         <h1>📋 Điểm danh lớp {danhSachLop[maLop]?.tenHienThi || maLop}</h1>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -622,167 +686,261 @@ export default function App() {
 
       {msg && <div className="msg">{msg}</div>}
 
-      {/* NHÓM ĐIỂM DANH */}
-      {nhom === "diemdanh" && (
-        <>
-          <div className="tabcon">
-            <button
-              className={tabCon === "homnay" ? "active" : ""}
-              onClick={() => setTabCon("homnay")}
-            >
-              📋 Hôm nay
-            </button>
-            <button
-              className={tabCon === "camera" ? "active" : ""}
-              onClick={() => setTabCon("camera")}
-            >
-              🎥 Camera AI
-            </button>
-            <button
-              className={tabCon === "lichsu" ? "active" : ""}
-              onClick={() => {
-                setTabCon("lichsu");
-                loadLichSu();
-              }}
-            >
-              📅 Lịch sử
-            </button>
-            <button
-              className={tabCon === "thongke" ? "active" : ""}
-              onClick={() => {
-                setTabCon("thongke");
-                loadThongKe();
-              }}
-            >
-              📊 Thống kê
-            </button>
-            <button
-              className={tabCon === "thongbao" ? "active" : ""}
-              onClick={() => setTabCon("thongbao")}
-            >
-              📢 Thông báo
-            </button>
-          </div>
+      <AnimatePresence mode="wait" initial={false}>
+        {nhom === "diemdanh" && (
+          <motion.div
+            key="diemdanh"
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -24 }}
+            transition={{ duration: 0.22 }}
+          >
+            <div className="tabcon">
+              <button
+                className={tabCon === "homnay" ? "active" : ""}
+                onClick={() => setTabCon("homnay")}
+              >
+                📋 Hôm nay
+              </button>
+              <button
+                className={tabCon === "camera" ? "active" : ""}
+                onClick={() => setTabCon("camera")}
+              >
+                🎥 Camera AI
+              </button>
+              <button
+                className={tabCon === "lichsu" ? "active" : ""}
+                onClick={() => {
+                  setTabCon("lichsu");
+                  loadLichSu();
+                }}
+              >
+                📅 Lịch sử
+              </button>
+              <button
+                className={tabCon === "thongke" ? "active" : ""}
+                onClick={() => {
+                  setTabCon("thongke");
+                  loadThongKe();
+                }}
+              >
+                📊 Thống kê
+              </button>
+            </div>
+            <AnimatePresence mode="wait" initial={false}>
+              {tabCon === "homnay" && (
+                <motion.div
+                  key="homnay"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <TabDiemDanh
+                    students={students}
+                    attendance={attendance}
+                    today={today}
+                    total={total}
+                    buoi={buoiDangChon}
+                    maLop={maLop}
+                    onMark={handleMark}
+                    onXoa={handleXoa}
+                    onXoaTatCa={handleXoaTatCa}
+                    onSua={handleSuaHomNay}
+                    onXacNhan={handleXacNhan}
+                  />
+                </motion.div>
+              )}
+              {tabCon === "camera" && (
+                <motion.div
+                  key="camera"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <TabCameraAI students={students} onMark={handleMark} />
+                </motion.div>
+              )}
+              {tabCon === "lichsu" && (
+                <motion.div
+                  key="lichsu"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <TabLichSu
+                    students={students}
+                    ngayXem={ngayXem}
+                    danhSachNgay={danhSachNgay}
+                    attendanceNgay={attendanceNgay}
+                    onDoiNgay={doiNgay}
+                    onSua={handleSuaDiemDanh}
+                    onXoa={handleXoaNgay}
+                  />
+                </motion.div>
+              )}
+              {tabCon === "thongke" && (
+                <motion.div
+                  key="thongke"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <TabThongKe
+                    students={students}
+                    thangThongKe={thangThongKe}
+                    duLieuThongKe={duLieuThongKe}
+                    onDoiThang={loadThongKe}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        )}
 
-          {tabCon === "homnay" && (
-            <TabDiemDanh
-              students={students}
-              attendance={attendance}
-              today={today}
-              total={total}
-              buoi={buoiDangChon}
-              maLop={maLop}
-              onMark={handleMark}
-              onXoa={handleXoa}
-              onXoaTatCa={handleXoaTatCa}
-              onSua={handleSuaHomNay}
-              onXacNhan={handleXacNhan}
-            />
-          )}
+        {nhom === "hocsinh" && (
+          <motion.div
+            key="hocsinh"
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -24 }}
+            transition={{ duration: 0.22 }}
+          >
+            <div className="tabcon">
+              <button
+                className={tabCon === "dangky" ? "active" : ""}
+                onClick={() => setTabCon("dangky")}
+              >
+                🧑 Đăng ký mặt
+              </button>
+              <button
+                className={tabCon === "quanly" ? "active" : ""}
+                onClick={() => setTabCon("quanly")}
+              >
+                📋 Quản lý lớp
+              </button>
+              <button
+                className={tabCon === "tkb" ? "active" : ""}
+                onClick={() => setTabCon("tkb")}
+              >
+                📅 Thời khóa biểu
+              </button>
+            </div>
+            <AnimatePresence mode="wait" initial={false}>
+              {tabCon === "dangky" && (
+                <motion.div
+                  key="dangky"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <TabDangKyMat students={students} />
+                </motion.div>
+              )}
+              {tabCon === "quanly" && (
+                <motion.div
+                  key="quanly"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <QuanLyLop />
+                </motion.div>
+              )}
+              {tabCon === "tkb" && (
+                <motion.div
+                  key="tkb"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <TabThoiKhoaBieu />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        )}
 
-          {tabCon === "camera" && (
-            <TabCameraAI students={students} onMark={handleMark} />
-          )}
-
-          {tabCon === "lichsu" && (
-            <TabLichSu
-              students={students}
-              ngayXem={ngayXem}
-              danhSachNgay={danhSachNgay}
-              attendanceNgay={attendanceNgay}
-              onDoiNgay={doiNgay}
-              onSua={handleSuaDiemDanh}
-              onXoa={handleXoaNgay}
-            />
-          )}
-
-          {tabCon === "thongke" && (
-            <TabThongKe
-              students={students}
-              thangThongKe={thangThongKe}
-              duLieuThongKe={duLieuThongKe}
-              onDoiThang={loadThongKe}
-            />
-          )}
-
-          {tabCon === "thongbao" && (
-            <TabThongBao students={students} maLop={maLop} selectedDate={today} />
-          )}
-        </>
-      )}
-
-      {/* NHÓM HỌC SINH */}
-      {nhom === "hocsinh" && (
-        <>
-          <div className="tabcon">
-            <button
-              className={tabCon === "dangky" ? "active" : ""}
-              onClick={() => setTabCon("dangky")}
-            >
-              🧑 Đăng ký mặt
-            </button>
-            <button
-              className={tabCon === "quanly" ? "active" : ""}
-              onClick={() => setTabCon("quanly")}
-            >
-              📋 Quản lý lớp
-            </button>
-            <button
-              className={tabCon === "tkb" ? "active" : ""}
-              onClick={() => setTabCon("tkb")}
-            >
-              📅 Thời khóa biểu
-            </button>
-          </div>
-
-          {tabCon === "dangky" && <TabDangKyMat students={students} />}
-          {tabCon === "quanly" && <QuanLyLop />}
-          {tabCon === "tkb" && <TabThoiKhoaBieu />}
-        </>
-      )}
-
-      {/* NHÓM BẢN TIN */}
-      {nhom === "news" && <News laGiaoVien={true} tenNguoiDung={user} />}
-
-      {/* NHÓM THI ĐUA */}
-      {nhom === "thidua" && <TabThiDua />}
-
-      {/* NHÓM CÀI ĐẶT */}
-      {nhom === "caidat" && (
-        <div className="caidat-box">
-          <h3>⚙️ Cài đặt & Báo cáo</h3>
-          <div className="caidat-grid">
-            <button onClick={handleBackupFirebase} className="caidat-btn">
-              💾 Backup
-            </button>
-            <label className="caidat-btn" style={{ cursor: "pointer", textAlign: "center" }}>
-              📥 Restore
-              <input type="file" accept="application/json" onChange={handleRestoreFirebase} style={{ display: "none" }} />
-            </label>
-            <button onClick={exportExcel} className="caidat-btn">
-              📊 Xuất Excel hôm nay
-            </button>
-            <button onClick={xoaDuLieu} className="caidat-btn danger">
-              🗑️ Xóa toàn bộ dữ liệu
-            </button>
-            <button onClick={handleLogout} className="caidat-btn">
-              🚪 Đăng xuất
-            </button>
-          </div>
-          <div className="caidat-info">
-            <p>
-              <b>Tài khoản:</b> {user}
-            </p>
-            <p>
-              <b>Tổng học sinh:</b> {total}
-            </p>
-            <p>
-              <b>Ngày hiện tại:</b> {today}
-            </p>
-          </div>
-        </div>
-      )}
-    </div>
+        {nhom === "news" && (
+          <motion.div
+            key="news"
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -24 }}
+            transition={{ duration: 0.22 }}
+          >
+            <News laGiaoVien={true} tenNguoiDung={user} />
+          </motion.div>
+        )}
+        {nhom === "thidua" && (
+          <motion.div
+            key="thidua"
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -24 }}
+            transition={{ duration: 0.22 }}
+          >
+            <TabThiDua />
+          </motion.div>
+        )}
+        {nhom === "caidat" && (
+          <motion.div
+            key="caidat"
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -24 }}
+            transition={{ duration: 0.22 }}
+            className="caidat-box"
+          >
+            <h3>⚙️ Cài đặt & Báo cáo</h3>
+            <div className="caidat-grid">
+              <button onClick={handleBackupFirebase} className="caidat-btn">
+                💾 Backup
+              </button>
+              <label
+                className="caidat-btn"
+                style={{ cursor: "pointer", textAlign: "center" }}
+              >
+                📥 Restore
+                <input
+                  type="file"
+                  accept="application/json"
+                  onChange={handleRestoreFirebase}
+                  style={{ display: "none" }}
+                />
+              </label>
+              <button onClick={exportExcel} className="caidat-btn">
+                📊 Xuất Excel hôm nay
+              </button>
+              <button onClick={xoaDuLieu} className="caidat-btn danger">
+                🗑️ Xóa toàn bộ dữ liệu
+              </button>
+              <button onClick={handleLogout} className="caidat-btn">
+                🚪 Đăng xuất
+              </button>
+            </div>
+            <div className="caidat-info">
+              <p>
+                <b>Tài khoản:</b> {user}
+              </p>
+              <p>
+                <b>Tổng học sinh:</b> {total}
+              </p>
+              <p>
+                <b>Ngày hiện tại:</b> {today}
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      </div>
+    </MotionConfig>
   );
 }
 
@@ -844,9 +1002,8 @@ function TabDiemDanh({
 
   function tietCoHoc() {
     if (!tkbLop) return false;
-    const day = new Date().getDay();
-    if (day === 0) return false;
-    const thu = `thu${day + 1}`;
+    const thu = layThuHienTai();
+    if (!thu) return false;
     const tkbThu = tkbLop[thu];
     if (!tkbThu) return false;
     const mangTiet = buoiHienTai === "sang" ? tkbThu.sang : tkbThu.chieu;
@@ -873,7 +1030,7 @@ function TabDiemDanh({
     const a = (attendance[studentId] || {})[buoiHienTai]?.[`tiet${tiet}`];
     setSuaModal({ studentId, hs });
     setSuaStatus(a?.trangThai || "Đúng giờ");
-    setSuaTime(a?.gioVao || new Date().toTimeString().slice(0, 5));
+    setSuaTime(a?.gioVao || layGioPhutHienTai());
   }
 
   function luuSua() {
@@ -1009,13 +1166,13 @@ function TabDiemDanh({
 
       <div className="thong-ke">
         <div className="card dunggio">
-          ✅ Đúng giờ <b>{dem["Đúng giờ"]}</b>
+          ✅ Đúng giờ <b><AnimatedNumber value={dem["Đúng giờ"]} /></b>
         </div>
         <div className="card tre">
-          🟡 Đi trễ <b>{dem["Đi trễ"]}</b>
+          🟡 Đi trễ <b><AnimatedNumber value={dem["Đi trễ"]} /></b>
         </div>
         <div className="card vang">
-          ❌ Vắng <b>{dem["Vắng"]}</b>
+          ❌ Vắng <b><AnimatedNumber value={dem["Vắng"]} /></b>
         </div>
         {dem["Có phép"] > 0 && (
           <div
@@ -1026,7 +1183,7 @@ function TabDiemDanh({
               borderBottom: "4px solid #3b82f6",
             }}
           >
-            📝 Có phép (-5đ) <b>{dem["Có phép"]}</b>
+            📝 Có phép (-5đ) <b><AnimatedNumber value={dem["Có phép"]} /></b>
           </div>
         )}
       </div>
@@ -1070,24 +1227,45 @@ function TabDiemDanh({
             }
 
             return (
-              <tr key={s.id} className={cls}>
+              <motion.tr
+                key={s.id}
+                className={cls}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.03 }}
+                whileHover={{ scale: 1.01, backgroundColor: "#f8fafc" }}
+                style={{ transformOrigin: "left center" }}
+              >
                 <td>{i + 1}</td>
                 <td>{s.id}</td>
                 <td>{s.name}</td>
-                <td>{status}</td>
+                <td>
+                  <motion.span
+                    key={a?.trangThai || status}
+                    initial={a ? { scale: 0.6, opacity: 0 } : false}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                  >
+                    {status}
+                  </motion.span>
+                </td>
                 <td>{a ? a.gioVao || "—" : "—"}</td>
                 <td>
                   {!a && coTiet && (
-                    <button onClick={() => onMark(s.id, buoiHienTai, tiet)}>
+                    <motion.button
+                      onClick={() => onMark(s.id, buoiHienTai, tiet)}
+                      whileTap={{ scale: 0.95 }}
+                    >
                       Điểm danh
-                    </button>
+                    </motion.button>
                   )}
                   {!a && !coTiet && (
                     <span style={{ color: "#94a3b8", fontSize: 13 }}>—</span>
                   )}
                   {laVang && onXacNhan && (
-                    <button
+                    <motion.button
                       onClick={() => onXacNhan(s.id, buoiHienTai, tiet)}
+                      whileTap={{ scale: 0.95 }}
                       style={{
                         background: "#10b981",
                         marginLeft: 4,
@@ -1097,7 +1275,7 @@ function TabDiemDanh({
                       title="Vắng có phép → chỉ trừ 5đ"
                     >
                       📝 Có phép
-                    </button>
+                    </motion.button>
                   )}
                   {a && (
                     <button
@@ -1135,57 +1313,74 @@ function TabDiemDanh({
                     ❌
                   </button>
                 </td>
-              </tr>
+              </motion.tr>
             );
           })}
         </tbody>
       </table>
 
-      {suaModal && (
-        <div className="modal-sua" onClick={() => setSuaModal(null)}>
-          <div className="modal-sua-box" onClick={(e) => e.stopPropagation()}>
-            <h3>✏️ Sửa điểm danh</h3>
-            <p>
-              <b>{suaModal.hs?.name}</b> — Tiết {tiet} buổi {tenBuoi} ngày{" "}
-              {today}
-            </p>
-
-            <div className="sua-group">
-              <label>Trạng thái:</label>
-              <select
-                value={suaStatus}
-                onChange={(e) => setSuaStatus(e.target.value)}
+      <AnimatePresence>
+        {suaModal && (
+          <ModalPortal key="sua-diem-danh">
+            <motion.div
+              className="modal-sua"
+              onClick={() => setSuaModal(null)}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <motion.div
+                className="modal-sua-box"
+                onClick={(e) => e.stopPropagation()}
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 25 }}
               >
-                <option value="Đúng giờ">✅ Đúng giờ</option>
-                <option value="Đi trễ">🟡 Đi trễ</option>
-                <option value="Vắng">❌ Vắng</option>
-                <option value="Có phép">📝 Có phép (không trừ)</option>
-              </select>
-            </div>
+                <h3>✏️ Sửa điểm danh</h3>
+                <p>
+                  <b>{suaModal.hs?.name}</b> — Tiết {tiet} buổi {tenBuoi} ngày{" "}
+                  {today}
+                </p>
 
-            <div className="sua-group">
-              <label>Giờ vào (hh:mm):</label>
-              <input
-                type="time"
-                value={suaTime}
-                onChange={(e) => setSuaTime(e.target.value)}
-              />
-            </div>
+                <div className="sua-group">
+                  <label>Trạng thái:</label>
+                  <select
+                    value={suaStatus}
+                    onChange={(e) => setSuaStatus(e.target.value)}
+                  >
+                    <option value="Đúng giờ">✅ Đúng giờ</option>
+                    <option value="Đi trễ">🟡 Đi trễ</option>
+                    <option value="Vắng">❌ Vắng</option>
+                    <option value="Có phép">📝 Có phép (không trừ)</option>
+                  </select>
+                </div>
 
-            <div className="modal-buttons">
-              <button
-                onClick={() => setSuaModal(null)}
-                style={{ background: "#94a3b8" }}
-              >
-                ❌ Hủy
-              </button>
-              <button onClick={luuSua} style={{ background: "#10b981" }}>
-                ✅ Lưu
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+                <div className="sua-group">
+                  <label>Giờ vào (hh:mm):</label>
+                  <input
+                    type="time"
+                    value={suaTime}
+                    onChange={(e) => setSuaTime(e.target.value)}
+                  />
+                </div>
+
+                <div className="modal-buttons">
+                  <button
+                    onClick={() => setSuaModal(null)}
+                    style={{ background: "#94a3b8" }}
+                  >
+                    ❌ Hủy
+                  </button>
+                  <button onClick={luuSua} style={{ background: "#10b981" }}>
+                    ✅ Lưu
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          </ModalPortal>
+        )}
+      </AnimatePresence>
     </>
   );
 }
@@ -1250,9 +1445,8 @@ function TabCameraAI({ students, onMark }) {
       console.log("❌ tietCoHoc: tkbLop null");
       return false;
     }
-    const day = new Date().getDay();
-    if (day === 0) return false;
-    const thu = `thu${day + 1}`;
+    const thu = layThuHienTai();
+    if (!thu) return false;
     const tkbThu = tkbLop[thu];
     if (!tkbThu) {
       console.log("❌ Không có", thu, "| keys:", Object.keys(tkbLop));
@@ -1812,7 +2006,7 @@ function TabLichSu({
     const a = (attendanceNgay[studentId] || {})[buoi]?.[`tiet${tietXem}`];
     setSuaModal({ studentId, hs });
     setSuaStatus(a?.trangThai || "Đúng giờ");
-    setSuaTime(a?.gioVao || new Date().toTimeString().slice(0, 5));
+    setSuaTime(a?.gioVao || layGioPhutHienTai());
   }
 
   function luuSua() {
@@ -1879,13 +2073,13 @@ function TabLichSu({
             type="date"
             value={ngayXem}
             onChange={(e) => onDoiNgay(e.target.value)}
-            max={new Date().toISOString().slice(0, 10)}
+            max={layNgayHomNay()}
           />
         </div>
 
         <div className="lichsu-quick">
           <button
-            onClick={() => onDoiNgay(new Date().toISOString().slice(0, 10))}
+            onClick={() => onDoiNgay(layNgayHomNay())}
           >
             Hôm nay
           </button>
@@ -1893,7 +2087,7 @@ function TabLichSu({
             onClick={() => {
               const d = new Date();
               d.setDate(d.getDate() - 1);
-              onDoiNgay(d.toISOString().slice(0, 10));
+              onDoiNgay(layNgayHomNay(d));
             }}
           >
             Hôm qua
@@ -1908,13 +2102,13 @@ function TabLichSu({
 
       <div className="thong-ke">
         <div className="card dunggio">
-          ✅ Đúng giờ <b>{dem["Đúng giờ"]}</b>
+          ✅ Đúng giờ <b><AnimatedNumber value={dem["Đúng giờ"]} /></b>
         </div>
         <div className="card tre">
-          🟡 Đi trễ <b>{dem["Đi trễ"]}</b>
+          🟡 Đi trễ <b><AnimatedNumber value={dem["Đi trễ"]} /></b>
         </div>
         <div className="card vang">
-          ❌ Vắng <b>{dem["Vắng"]}</b>
+          ❌ Vắng <b><AnimatedNumber value={dem["Vắng"]} /></b>
         </div>
       </div>
 
@@ -1979,51 +2173,68 @@ function TabLichSu({
         </tbody>
       </table>
 
-      {suaModal && (
-        <div className="modal-sua" onClick={() => setSuaModal(null)}>
-          <div className="modal-sua-box" onClick={(e) => e.stopPropagation()}>
-            <h3>✏️ Sửa điểm danh</h3>
-            <p>
-              <b>{suaModal.hs?.name}</b> — Buổi{" "}
-              {buoi === "sang" ? "Sáng" : "Chiều"} tiết {tietXem} ngày{" "}
-              {formatNgay(ngayXem)}
-            </p>
-
-            <div className="sua-group">
-              <label>Trạng thái:</label>
-              <select
-                value={suaStatus}
-                onChange={(e) => setSuaStatus(e.target.value)}
+      <AnimatePresence>
+        {suaModal && (
+          <ModalPortal key="sua-diem-danh-lich-su">
+            <motion.div
+              className="modal-sua"
+              onClick={() => setSuaModal(null)}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <motion.div
+                className="modal-sua-box"
+                onClick={(e) => e.stopPropagation()}
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 25 }}
               >
-                <option value="Đúng giờ">✅ Đúng giờ</option>
-                <option value="Đi trễ">🟡 Đi trễ</option>
-                <option value="Vắng">❌ Vắng</option>
-              </select>
-            </div>
+                <h3>✏️ Sửa điểm danh</h3>
+                <p>
+                  <b>{suaModal.hs?.name}</b> — Buổi{" "}
+                  {buoi === "sang" ? "Sáng" : "Chiều"} tiết {tietXem} ngày{" "}
+                  {formatNgay(ngayXem)}
+                </p>
 
-            <div className="sua-group">
-              <label>Giờ vào (hh:mm):</label>
-              <input
-                type="time"
-                value={suaTime}
-                onChange={(e) => setSuaTime(e.target.value)}
-              />
-            </div>
+                <div className="sua-group">
+                  <label>Trạng thái:</label>
+                  <select
+                    value={suaStatus}
+                    onChange={(e) => setSuaStatus(e.target.value)}
+                  >
+                    <option value="Đúng giờ">✅ Đúng giờ</option>
+                    <option value="Đi trễ">🟡 Đi trễ</option>
+                    <option value="Vắng">❌ Vắng</option>
+                  </select>
+                </div>
 
-            <div className="modal-buttons">
-              <button
-                onClick={() => setSuaModal(null)}
-                style={{ background: "#94a3b8" }}
-              >
-                ❌ Hủy
-              </button>
-              <button onClick={luuSua} style={{ background: "#10b981" }}>
-                ✅ Lưu
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+                <div className="sua-group">
+                  <label>Giờ vào (hh:mm):</label>
+                  <input
+                    type="time"
+                    value={suaTime}
+                    onChange={(e) => setSuaTime(e.target.value)}
+                  />
+                </div>
+
+                <div className="modal-buttons">
+                  <button
+                    onClick={() => setSuaModal(null)}
+                    style={{ background: "#94a3b8" }}
+                  >
+                    ❌ Hủy
+                  </button>
+                  <button onClick={luuSua} style={{ background: "#10b981" }}>
+                    ✅ Lưu
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          </ModalPortal>
+        )}
+      </AnimatePresence>
     </>
   );
 }
@@ -2031,6 +2242,18 @@ function TabLichSu({
 /* =============================================================
    TAB THỐNG KÊ
    ============================================================= */
+function AnimatedNumber({ value }) {
+  const motionValue = useMotionValue(0);
+  const roundedValue = useTransform(motionValue, (latest) => Math.round(latest));
+
+  useEffect(() => {
+    const controls = animate(motionValue, value, { duration: 0.8 });
+    return () => controls.stop();
+  }, [motionValue, value]);
+
+  return <motion.span>{roundedValue}</motion.span>;
+}
+
 function TabThongKe({ students, thangThongKe, duLieuThongKe, onDoiThang }) {
   const [sortBy, setSortBy] = useState("ten");
 
@@ -2107,7 +2330,7 @@ function TabThongKe({ students, thangThongKe, duLieuThongKe, onDoiThang }) {
             type="month"
             value={thangThongKe}
             onChange={(e) => onDoiThang(e.target.value)}
-            max={new Date().toISOString().slice(0, 7)}
+            max={layNgayHomNay().slice(0, 7)}
           />
         </div>
         <button onClick={xuatExcel} style={{ background: "#10b981" }}>
@@ -2119,18 +2342,18 @@ function TabThongKe({ students, thangThongKe, duLieuThongKe, onDoiThang }) {
         📊 Thống kê {formatThang(thangThongKe)}
       </h3>
       <p style={{ textAlign: "center", color: "#64748b" }}>
-        Có <b>{soNgay}</b> ngày điểm danh trong tháng
+        Có <b><AnimatedNumber value={soNgay} /></b> ngày điểm danh trong tháng
       </p>
 
       <div className="thong-ke">
         <div className="card dunggio">
-          ✅ Tổng đúng giờ <b>{tongDungGio}</b>
+          ✅ Tổng đúng giờ <b><AnimatedNumber value={tongDungGio} /></b>
         </div>
         <div className="card tre">
-          🟡 Tổng đi trễ <b>{tongDiTre}</b>
+          🟡 Tổng đi trễ <b><AnimatedNumber value={tongDiTre} /></b>
         </div>
         <div className="card vang">
-          ❌ Tổng vắng <b>{tongVang}</b>
+          ❌ Tổng vắng <b><AnimatedNumber value={tongVang} /></b>
         </div>
       </div>
 

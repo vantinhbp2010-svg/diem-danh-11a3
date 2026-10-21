@@ -31,6 +31,36 @@ export const TEN_THU = {
 export const TKB_SANG = GIO_SANG;
 export const TKB_CHIEU = GIO_CHIEU;
 
+const MUI_GIO_VIET_NAM = "Asia/Ho_Chi_Minh";
+const DINH_DANG_NGAY_VN = new Intl.DateTimeFormat("en-CA", {
+  timeZone: MUI_GIO_VIET_NAM,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+const DINH_DANG_GIO_VN = new Intl.DateTimeFormat("en-GB", {
+  timeZone: MUI_GIO_VIET_NAM,
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+const DINH_DANG_THU_VN = new Intl.DateTimeFormat("en-US", {
+  timeZone: MUI_GIO_VIET_NAM,
+  weekday: "short",
+});
+
+export function layNgayHomNay(date = new Date()) {
+  const parts = DINH_DANG_NGAY_VN.formatToParts(date);
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+export function layGioPhutHienTai(date = new Date()) {
+  const parts = DINH_DANG_GIO_VN.formatToParts(date);
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${values.hour}:${values.minute}`;
+}
+
 // TKB mặc định — tất cả tiết đều có học
 export function tkbMacDinh() {
   return {
@@ -57,17 +87,16 @@ function gioToPhut(gio) {
 }
 
 export function gioHienTai() {
-  const now = new Date();
-  return now.getHours() * 60 + now.getMinutes();
+  return gioToPhut(layGioPhutHienTai());
 }
 
 /**
  * Lấy key thứ hiện tại: "thu2" → "thu7", Chủ nhật → null
  */
-export function layThuHienTai() {
-  const day = new Date().getDay();
-  if (day === 0) return null;
-  return `thu${day + 1}`;
+export function layThuHienTai(date = new Date()) {
+  const day = DINH_DANG_THU_VN.format(date);
+  const dayNumber = { Mon: 2, Tue: 3, Wed: 4, Thu: 5, Fri: 6, Sat: 7 }[day];
+  return dayNumber ? `thu${dayNumber}` : null;
 }
 
 /**
@@ -177,6 +206,10 @@ export function tietDangDienRa(tkb) {
 }
 
 export function tinhTrangThai(buoi, tiet, gioQuet) {
+  if (buoi !== "sang" && buoi !== "chieu") {
+    return { trangThai: "Sai tiết", phutTre: 0, diemTru: 0 };
+  }
+
   const dsTiet = buoi === "sang" ? GIO_SANG : GIO_CHIEU;
   const tietInfo = dsTiet.find((t) => t.tiet === tiet);
 
@@ -184,9 +217,19 @@ export function tinhTrangThai(buoi, tiet, gioQuet) {
     return { trangThai: "Sai tiết", phutTre: 0, diemTru: 0 };
   }
 
+  if (
+    typeof gioQuet !== "string" ||
+    !/^([01]\d|2[0-3]):[0-5]\d$/.test(gioQuet)
+  ) {
+    return { trangThai: "Vắng", phutTre: 0, diemTru: -10 };
+  }
+
   const phutVao = gioToPhut(tietInfo.vao);
   const phutRa = gioToPhut(tietInfo.ra);
   const phutQuet = gioToPhut(gioQuet);
+  if (phutQuet < 0 || phutQuet >= 24 * 60) {
+    return { trangThai: "Vắng", phutTre: 0, diemTru: -10 };
+  }
 
   // ✅ Sau khi hết tiết → VẮNG (không phải đi trễ)
   if (phutQuet > phutRa) {

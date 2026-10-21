@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import ModalPortal from "./ModalPortal";
 import { tinhDiemTruTuDong } from "./tinhDiemTuDong";
 import {
   getNgayNghi,
@@ -826,8 +827,9 @@ export default function TabThiDua() {
 
       {/* MODAL NGÀY NGHỈ */}
       {modalNgayNghi && (
-        <div className="modal-sua" onClick={() => setModalNgayNghi(false)}>
-          <div className="modal-sua-box" onClick={(e) => e.stopPropagation()}>
+        <ModalPortal>
+          <div className="modal-sua" onClick={() => setModalNgayNghi(false)}>
+            <div className="modal-sua-box" onClick={(e) => e.stopPropagation()}>
             <h3>🚫 Đánh dấu ngày không tính điểm</h3>
             <p style={{ textAlign: "center", color: "#64748b", fontSize: 13 }}>
               Ngày này sẽ không bị trừ điểm vắng/trễ
@@ -868,14 +870,16 @@ export default function TabThiDua() {
                 🚫 Đánh dấu
               </button>
             </div>
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* MODAL THÊM */}
       {modal && (
-        <div className="modal-sua" onClick={() => setModal(null)}>
-          <div className="modal-sua-box" onClick={(e) => e.stopPropagation()}>
+        <ModalPortal>
+          <div className="modal-sua" onClick={() => setModal(null)}>
+            <div className="modal-sua-box" onClick={(e) => e.stopPropagation()}>
             <h3>
               {modal.loai === "viPham"
                 ? "➖ Thêm vi phạm"
@@ -923,8 +927,9 @@ export default function TabThiDua() {
                 ✅ Lưu
               </button>
             </div>
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </>
   );
