@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState, useRef, useEffect } from "react";
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
-import { hoiChatBot, resetHistory } from "./gemini";
+import { hoiChatBot, resetHistory } from "./groq";
 import "./App.css";
 
 const ChatMessage = lazy(() => import("./ChatMessage"));

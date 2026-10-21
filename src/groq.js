@@ -41,7 +41,6 @@ export async function hoiChatBot(cauHoi) {
       const normalizedError = errorMessage.toLowerCase();
       const isQuotaError = normalizedError.includes("quota");
       const isTemporaryError =
-        response.status === 429 ||
         response.status === 502 ||
         response.status === 503 ||
         response.status === 504 ||
@@ -50,6 +49,8 @@ export async function hoiChatBot(cauHoi) {
       if (!response.ok) {
         const error = new Error(errorMessage);
         error.status = response.status;
+        error.code = data.code;
+        error.retryAfter = data.retryAfter;
         error.isTemporary = isTemporaryError && !isQuotaError;
         throw error;
       }
@@ -81,13 +82,19 @@ export async function hoiChatBot(cauHoi) {
     lastError instanceof Error ? lastError.message : String(lastError);
   const normalizedError = errorMessage.toLowerCase();
 
+  if (lastError?.code === "MISSING_API_KEY") {
+    return "❌ Chatbot chưa được cấu hình Groq API. Vui lòng báo giáo viên.";
+  }
+  if (lastError?.code === "INVALID_API_KEY") {
+    return "❌ Khóa Groq API trên máy chủ không hợp lệ. Vui lòng báo giáo viên.";
+  }
+  if (lastError?.code === "RATE_LIMITED") {
+    return "⏳ Trợ lý đang tạm chạm giới hạn yêu cầu của Groq. Em vui lòng thử lại sau ít phút nhé!";
+  }
   if (normalizedError.includes("quota")) {
     return "⏳ Hạn mức sử dụng AI hiện đã đạt giới hạn. Em vui lòng thử lại sau nhé!";
   }
-  if (normalizedError.includes("high demand")) {
-    return "⏳ Trợ lý đang bận xử lý nhiều câu hỏi. Em vui lòng thử lại sau ít phút nhé!";
-  }
-  if (normalizedError.includes("gemini_api_key") || lastError?.status === 500) {
+  if (lastError?.status === 500) {
     return "❌ Chatbot chưa cấu hình hoặc đang gặp sự cố máy chủ. Vui lòng báo giáo viên.";
   }
   return "❌ Hệ thống đang bận. Em đợi một chút rồi thử lại nhé!";

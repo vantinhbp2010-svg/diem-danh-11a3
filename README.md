@@ -31,6 +31,16 @@ npm run deploy
 
 Đảm bảo Git remote đã được cấu hình và các secrets Cloudflare đã được thêm vào GitHub Actions.
 
+## Chatbot Groq
+
+Chatbot gọi Groq API qua endpoint máy chủ `/api/chat`. Không đặt API key trong mã frontend hoặc biến `VITE_*`.
+
+- **Cloudflare Pages:** thêm `GROQ_API_KEY` trong Settings → Variables and Secrets của Pages project (Production; thêm Preview nếu cần), sau đó deploy lại.
+- **Vercel:** thêm `GROQ_API_KEY` trong Project Settings → Environment Variables cho các môi trường cần dùng, sau đó redeploy.
+- **Chạy Cloudflare Function local:** tạo `.dev.vars` ở thư mục gốc với `GROQ_API_KEY=...`, chạy `npm run build`, sau đó `npx wrangler pages dev dist`. Không dùng `npm run dev` để kiểm tra endpoint serverless.
+
+Tạo API key tại [Groq Console](https://console.groq.com/keys). Giới hạn tốc độ và mức sử dụng tùy model/tài khoản; chuyển nhà cung cấp không đảm bảo bỏ hoàn toàn rate limit.
+
 ## Cấu trúc quan trọng
 - `src/App.jsx` — giao diện chính và các tab.
 - `src/TabDashboard.jsx` — dashboard chuyên cần.
@@ -39,4 +49,3 @@ npm run deploy
 - `public/_redirects` — route SPA cho Cloudflare Pages.
 - `wrangler.toml` — cấu hình Pages.
 - `.github/workflows/deploy.yml` — tự động deploy.
-
