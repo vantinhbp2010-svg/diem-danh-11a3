@@ -54,12 +54,14 @@ export async function createGroqChatResult(body, apiKey, fetcher = fetch) {
     if (!response.ok) {
       console.error("Groq API trả lỗi:", response.status, data.error?.type);
       if (response.status === 429) {
+        const retryAfter = response.headers.get("retry-after");
         return {
           status: 429,
-          retryAfter: response.headers.get("retry-after"),
+          retryAfter,
           body: {
             code: "RATE_LIMITED",
             error: "Groq đang giới hạn tần suất yêu cầu.",
+            retryAfter,
           },
         };
       }

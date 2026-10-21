@@ -90,7 +90,11 @@ export async function hoiChatBot(cauHoi) {
     return "❌ Khóa Groq API trên máy chủ không hợp lệ. Vui lòng báo giáo viên.";
   }
   if (lastError?.code === "RATE_LIMITED") {
-    const waitSeconds = Number.parseInt(lastError.retryAfter, 10);
+    const retryAfter = lastError.retryAfter;
+    const retryAfterSeconds = Number(retryAfter);
+    const waitSeconds = Number.isFinite(retryAfterSeconds)
+      ? Math.ceil(retryAfterSeconds)
+      : Math.ceil((Date.parse(retryAfter) - Date.now()) / 1000);
     if (Number.isFinite(waitSeconds) && waitSeconds > 0) {
       return `⏳ Groq đang giới hạn yêu cầu. Em thử lại sau khoảng ${waitSeconds} giây nhé!`;
     }
