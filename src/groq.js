@@ -50,7 +50,8 @@ export async function hoiChatBot(cauHoi) {
         const error = new Error(errorMessage);
         error.status = response.status;
         error.code = data.code;
-        error.retryAfter = data.retryAfter;
+        error.retryAfter =
+          response.headers.get("retry-after") || data.retryAfter || null;
         error.isTemporary = isTemporaryError && !isQuotaError;
         throw error;
       }
@@ -89,7 +90,11 @@ export async function hoiChatBot(cauHoi) {
     return "❌ Khóa Groq API trên máy chủ không hợp lệ. Vui lòng báo giáo viên.";
   }
   if (lastError?.code === "RATE_LIMITED") {
-    return "⏳ Trợ lý đang tạm chạm giới hạn yêu cầu của Groq. Em vui lòng thử lại sau ít phút nhé!";
+    const waitSeconds = Number.parseInt(lastError.retryAfter, 10);
+    if (Number.isFinite(waitSeconds) && waitSeconds > 0) {
+      return `⏳ Groq đang giới hạn yêu cầu. Em thử lại sau khoảng ${waitSeconds} giây nhé!`;
+    }
+    return "⏳ Groq đang giới hạn yêu cầu. Em vui lòng thử lại sau ít phút nhé!";
   }
   if (normalizedError.includes("quota")) {
     return "⏳ Hạn mức sử dụng AI hiện đã đạt giới hạn. Em vui lòng thử lại sau nhé!";
