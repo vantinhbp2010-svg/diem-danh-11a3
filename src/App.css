@@ -3,6 +3,39 @@
    Single file, no conflicts, full design system
    ===================================================== */
 
+.app-loading {
+  padding: 2rem;
+  color: #64748b;
+  text-align: center;
+}
+
+.tab-skeleton {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+  border-radius: 12px;
+  background: var(--surface, #fff);
+}
+
+.tab-skeleton span {
+  height: 18px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #e2e8f0 25%, #f8fafc 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: tab-skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+.tab-skeleton span:nth-child(2) { width: 78%; }
+.tab-skeleton span:nth-child(3) { width: 56%; }
+
+@keyframes tab-skeleton-shimmer {
+  to { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-skeleton span { animation: none; }
+}
+
 /* ============ DESIGN TOKENS ============ */
 :root {
   --primary: #2563eb;

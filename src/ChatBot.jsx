@@ -1,12 +1,9 @@
-import { useState, useRef, useEffect } from "react";
+import { lazy, Suspense, useState, useRef, useEffect } from "react";
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
-import ReactMarkdown from "react-markdown";
-import remarkMath from "remark-math";
-import rehypeKatex from "rehype-katex";
-import remarkGfm from "remark-gfm";
 import { hoiChatBot, resetHistory } from "./gemini";
-import "katex/dist/katex.min.css";
 import "./App.css";
+
+const ChatMessage = lazy(() => import("./ChatMessage"));
 
 export default function ChatBot() {
   const [mo, setMo] = useState(false);
@@ -61,12 +58,9 @@ export default function ChatBot() {
 
   function renderTin(text) {
     return (
-      <ReactMarkdown
-        remarkPlugins={[remarkMath, remarkGfm]}
-        rehypePlugins={[rehypeKatex]}
-      >
-        {text}
-      </ReactMarkdown>
+      <Suspense fallback={<span>{text}</span>}>
+        <ChatMessage text={text} />
+      </Suspense>
     );
   }
 

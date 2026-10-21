@@ -1,4 +1,11 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
 import { getDSLop, getDanhSachLop, doiTenLop } from "./lopStorage";
 // ✅ ĐÃ XÓA: import { students as defaultStudents } from "./data";
 
@@ -12,12 +19,7 @@ export function StudentsProvider({ children }) {
   const [maLop, setMaLop] = useState("");
   const [danhSachLop, setDanhSachLop] = useState({});
 
-  useEffect(() => {
-    loadDS();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function loadDS() {
+  const loadDS = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -51,9 +53,14 @@ export function StudentsProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  async function chonLop(maLopMoi) {
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Nạp danh sách lớp từ cloud bất đồng bộ.
+    loadDS();
+  }, [loadDS]);
+
+  const chonLop = useCallback(async (maLopMoi) => {
     try {
       setLoading(true);
       localStorage.setItem(KEY_LOP, maLopMoi);
@@ -70,36 +77,38 @@ export function StudentsProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  async function reload() {
+  const reload = useCallback(async () => {
     await loadDS();
-  }
+  }, [loadDS]);
 
   // ✅ Đổi tên hiển thị lớp mà không thay đổi mã lớp gốc
-  async function doiTen(maLopMoi, tenMoi) {
+  const doiTen = useCallback(async (maLopMoi, tenMoi) => {
     await doiTenLop(maLopMoi, tenMoi);
     await loadDS();
-  }
+  }, [loadDS]);
+
+  const value = useMemo(
+    () => ({
+      students,
+      loading,
+      maLop,
+      danhSachLop,
+      chonLop,
+      reload,
+      setStudents,
+      doiTen,
+    }),
+    [students, loading, maLop, danhSachLop, chonLop, reload, doiTen]
+  );
 
   return (
-    <StudentsContext.Provider
-      value={{
-        students,
-        loading,
-        maLop,
-        danhSachLop,
-        chonLop,
-        reload,
-        setStudents,
-        doiTen,
-      }}
-    >
-      {children}
-    </StudentsContext.Provider>
+    <StudentsContext.Provider value={value}>{children}</StudentsContext.Provider>
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- Hook này dùng chung context với provider.
 export function useStudents() {
   const ctx = useContext(StudentsContext);
   if (!ctx) {

@@ -1,4 +1,13 @@
-import { useState, useEffect, useRef } from "react";
+import {
+  lazy,
+  memo,
+  Suspense,
+  useCallback,
+  useMemo,
+  useState,
+  useEffect,
+  useRef,
+} from "react";
 import {
   AnimatePresence,
   animate,
@@ -7,7 +16,6 @@ import {
   useMotionValue,
   useTransform,
 } from "framer-motion";
-import * as XLSX from "xlsx";
 import { useNavigate } from "react-router-dom";
 import ModalPortal from "./ModalPortal";
 import {
@@ -21,34 +29,40 @@ import {
   xoaDiemDanh,
   xoaTatCaCuaHocSinh,
   getAttendanceByDate,
-  getDanhSachNgay,
   updateAttendance,
   xoaDiemDanhTheoNgay,
   tinhThongKeThang,
   xacNhanKhongVang,
 } from "./storage";
 import { logout, getUser } from "./auth";
-import News from "./News";
-import TabThiDua from "./TabThiDua";
-import QuanLyLop from "./QuanLyLop";
-import TabThoiKhoaBieu from "./TabThoiKhoaBieu";
 import { useStudents } from "./StudentsContext";
 import "./App.css";
+
+const News = lazy(() => import("./News"));
+const TabThiDua = lazy(() => import("./TabThiDua"));
+const QuanLyLop = lazy(() => import("./QuanLyLop"));
+const TabThoiKhoaBieu = lazy(() => import("./TabThoiKhoaBieu"));
+const EMPTY_THONG_KE = [];
+
+function SkeletonLoading() {
+  return (
+    <div className="tab-skeleton" role="status" aria-label="Đang tải nội dung">
+      <span />
+      <span />
+      <span />
+    </div>
+  );
+}
 
 export default function App() {
   const [nhom, setNhom] = useState("diemdanh");
   const [tabCon, setTabCon] = useState("homnay");
   const [attendance, setAttendance] = useState({});
-  const [today, setToday] = useState("");
+  const [today, setToday] = useState(() => layNgayHomNay());
   const [msg, setMsg] = useState("");
-  const [buoiDangChon, setBuoiDangChon] = useState(() => {
-    const gio = Number(layGioPhutHienTai().slice(0, 2));
-    return gio >= 12 ? "chieu" : "sang";
-  });
 
   const [ngayXem, setNgayXem] = useState("");
   const [attendanceNgay, setAttendanceNgay] = useState({});
-  const [danhSachNgay, setDanhSachNgay] = useState([]);
   const [thangThongKe, setThangThongKe] = useState(() => {
     return layNgayHomNay().slice(0, 7);
   });
@@ -58,20 +72,7 @@ export default function App() {
   const user = getUser();
   const { students, maLop, danhSachLop, chonLop } = useStudents();
 
-  useEffect(() => {
-    const d = layNgayHomNay();
-    setToday(d);
-    loadData();
-
-    // Tự động chuyển vắng khi mở app
-    import("./storage").then(({ tuDongChuyenVang }) => {
-      tuDongChuyenVang().then(() => loadData());
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // ============ LOAD DATA ============
-  async function loadData() {
+  const loadData = useCallback(async () => {
     try {
       const data = await getAttendance();
       const d = layNgayHomNay();
@@ -80,9 +81,20 @@ export default function App() {
       console.error("Lỗi tải dữ liệu:", err);
       setMsg("Lỗi tải dữ liệu từ cloud: " + err.message);
     }
-  }
+  }, []);
 
-  async function refresh() {
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Tải dữ liệu từ cloud bất đồng bộ.
+    loadData();
+
+    // Tự động chuyển vắng khi mở app
+    import("./storage").then(({ tuDongChuyenVang }) => {
+      tuDongChuyenVang().then(() => loadData());
+    });
+  }, [loadData]);
+
+  // ============ LOAD DATA ============
+  const refresh = useCallback(async () => {
     try {
       const data = await getAttendance();
       const currentDate = layNgayHomNay();
@@ -91,10 +103,10 @@ export default function App() {
     } catch (err) {
       console.error(err);
     }
-  }
+  }, []);
 
   // ============ ĐIỂM DANH ============
-  async function handleMark(id, buoi, tiet) {
+  const handleMark = useCallback(async (id, buoi, tiet) => {
     try {
       const res = await markAttendance(id, buoi, tiet);
       setMsg(
@@ -113,9 +125,9 @@ export default function App() {
       setMsg("Lỗi: " + err.message);
       return { ok: false, message: err.message };
     }
-  }
+  }, [refresh]);
 
-  async function handleXoa(id, buoi, tiet) {
+  const handleXoa = useCallback(async (id, buoi, tiet) => {
     const hs = students.find((s) => s.id === id);
     if (
       !window.confirm(
@@ -133,9 +145,9 @@ export default function App() {
     } catch (err) {
       setMsg("Lỗi xóa: " + err.message);
     }
-  }
+  }, [students, refresh]);
 
-  async function handleSuaHomNay(id, buoi, tiet, status, time) {
+  const handleSuaHomNay = useCallback(async (id, buoi, tiet, status, time) => {
     try {
       const data = await getAttendance();
       const todayStr = layNgayHomNay();
@@ -163,9 +175,9 @@ export default function App() {
     } catch (err) {
       setMsg("❌ Lỗi sửa: " + err.message);
     }
-  }
+  }, [refresh]);
 
-  async function handleXacNhan(id, buoi, tiet) {
+  const handleXacNhan = useCallback(async (id, buoi, tiet) => {
     const hs = students.find((s) => s.id === id);
     if (
       !window.confirm(
@@ -188,9 +200,9 @@ export default function App() {
     } catch (err) {
       setMsg("❌ Lỗi: " + err.message);
     }
-  }
+  }, [students, today, refresh]);
 
-  async function handleXoaTatCa(id) {
+  const handleXoaTatCa = useCallback(async (id) => {
     const hs = students.find((s) => s.id === id);
     if (
       !window.confirm(
@@ -212,13 +224,11 @@ export default function App() {
     } catch (err) {
       setMsg("❌ Lỗi xóa: " + err.message);
     }
-  }
+  }, [students, refresh]);
 
   // ============ LỊCH SỬ ============
-  async function loadLichSu() {
+  const loadLichSu = useCallback(async () => {
     try {
-      const ds = await getDanhSachNgay();
-      setDanhSachNgay(ds);
       const ngay = ngayXem || layNgayHomNay();
       if (!ngayXem) setNgayXem(ngay);
       const data = await getAttendanceByDate(ngay);
@@ -226,22 +236,22 @@ export default function App() {
     } catch (err) {
       console.error(err);
     }
-  }
+  }, [ngayXem]);
 
-  async function doiNgay(ngay) {
+  const doiNgay = useCallback(async (ngay) => {
     setNgayXem(ngay);
     const data = await getAttendanceByDate(ngay);
     setAttendanceNgay(data);
-  }
+  }, []);
 
-  async function handleSuaDiemDanh(studentId, buoi, status, time) {
+  const handleSuaDiemDanh = useCallback(async (studentId, buoi, status, time) => {
     await updateAttendance(studentId, ngayXem, buoi, 1, status, time);
     setMsg(`Đã sửa điểm danh`);
     await doiNgay(ngayXem);
     setTimeout(() => setMsg(""), 3000);
-  }
+  }, [ngayXem, doiNgay]);
 
-  async function handleXoaNgay(studentId, buoi) {
+  const handleXoaNgay = useCallback(async (studentId, buoi) => {
     const hs = students.find((s) => s.id === studentId);
     if (
       !window.confirm(
@@ -255,10 +265,10 @@ export default function App() {
     await doiNgay(ngayXem);
     setMsg(`Đã xóa điểm danh của ${hs?.name}`);
     setTimeout(() => setMsg(""), 3000);
-  }
+  }, [students, ngayXem, doiNgay]);
 
   // ============ THỐNG KÊ ============
-  async function loadThongKe(thang) {
+  const loadThongKe = useCallback(async (thang) => {
     try {
       const thangDung = thang || thangThongKe;
       setThangThongKe(thangDung);
@@ -268,10 +278,11 @@ export default function App() {
       console.error("Lỗi thống kê:", err);
       setMsg("Lỗi tải thống kê: " + err.message);
     }
-  }
+  }, [students, thangThongKe]);
 
   // ============ EXCEL ============
-  function exportExcel() {
+  async function exportExcel() {
+    const XLSX = await import("xlsx");
     const rows = students.map((s, i) => {
       const a = attendance[s.id] || {};
       const sang = a.sang || {};
@@ -545,7 +556,9 @@ export default function App() {
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <QuanLyLop />
+                    <Suspense fallback={<SkeletonLoading />}>
+                      <QuanLyLop />
+                    </Suspense>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -559,7 +572,9 @@ export default function App() {
               exit={{ opacity: 0, x: -24 }}
               transition={{ duration: 0.22 }}
             >
-              <News laGiaoVien={true} tenNguoiDung={user} />
+              <Suspense fallback={<SkeletonLoading />}>
+                <News laGiaoVien={true} tenNguoiDung={user} />
+              </Suspense>
             </motion.div>
           )}
           {nhom === "thidua" && (
@@ -570,7 +585,9 @@ export default function App() {
               exit={{ opacity: 0, x: -24 }}
               transition={{ duration: 0.22 }}
             >
-              <TabThiDua />
+              <Suspense fallback={<SkeletonLoading />}>
+                <TabThiDua />
+              </Suspense>
             </motion.div>
           )}
           {nhom === "caidat" && (
@@ -736,12 +753,10 @@ export default function App() {
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <TabDiemDanh
+                  <MemoTabDiemDanh
                     students={students}
                     attendance={attendance}
                     today={today}
-                    total={total}
-                    buoi={buoiDangChon}
                     maLop={maLop}
                     onMark={handleMark}
                     onXoa={handleXoa}
@@ -770,10 +785,9 @@ export default function App() {
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <TabLichSu
+                  <MemoTabLichSu
                     students={students}
                     ngayXem={ngayXem}
-                    danhSachNgay={danhSachNgay}
                     attendanceNgay={attendanceNgay}
                     onDoiNgay={doiNgay}
                     onSua={handleSuaDiemDanh}
@@ -789,8 +803,7 @@ export default function App() {
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <TabThongKe
-                    students={students}
+                  <MemoTabThongKe
                     thangThongKe={thangThongKe}
                     duLieuThongKe={duLieuThongKe}
                     onDoiThang={loadThongKe}
@@ -849,7 +862,9 @@ export default function App() {
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <QuanLyLop />
+                  <Suspense fallback={<SkeletonLoading />}>
+                    <QuanLyLop />
+                  </Suspense>
                 </motion.div>
               )}
               {tabCon === "tkb" && (
@@ -860,7 +875,9 @@ export default function App() {
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <TabThoiKhoaBieu />
+                  <Suspense fallback={<SkeletonLoading />}>
+                    <TabThoiKhoaBieu />
+                  </Suspense>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -875,7 +892,9 @@ export default function App() {
             exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.22 }}
           >
-            <News laGiaoVien={true} tenNguoiDung={user} />
+            <Suspense fallback={<SkeletonLoading />}>
+              <News laGiaoVien={true} tenNguoiDung={user} />
+            </Suspense>
           </motion.div>
         )}
         {nhom === "thidua" && (
@@ -886,7 +905,9 @@ export default function App() {
             exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.22 }}
           >
-            <TabThiDua />
+            <Suspense fallback={<SkeletonLoading />}>
+              <TabThiDua />
+            </Suspense>
           </motion.div>
         )}
         {nhom === "caidat" && (
@@ -951,8 +972,6 @@ function TabDiemDanh({
   students,
   attendance,
   today,
-  total,
-  buoi,
   maLop,
   onMark,
   onXoa,
@@ -1013,15 +1032,18 @@ function TabDiemDanh({
 
   const coTiet = tietCoHoc();
 
-  const dem = { "Đúng giờ": 0, "Đi trễ": 0, "Vắng": 0, "Có phép": 0 };
-  students.forEach((s) => {
-    const a = (attendance[s.id] || {})[buoiHienTai]?.[`tiet${tiet}`];
-    if (!a) {
-      if (coTiet) dem["Vắng"]++;
-    } else {
-      dem[a.trangThai] = (dem[a.trangThai] || 0) + 1;
-    }
-  });
+  const dem = useMemo(() => {
+    const counts = { "Đúng giờ": 0, "Đi trễ": 0, "Vắng": 0, "Có phép": 0 };
+    students.forEach((s) => {
+      const a = (attendance[s.id] || {})[buoiHienTai]?.[`tiet${tiet}`];
+      if (!a) {
+        if (coTiet) counts["Vắng"]++;
+      } else {
+        counts[a.trangThai] = (counts[a.trangThai] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [students, attendance, buoiHienTai, tiet, coTiet]);
 
   const tenBuoi = buoiHienTai === "sang" ? "Sáng" : "Chiều";
 
@@ -1232,7 +1254,7 @@ function TabDiemDanh({
                 className={cls}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.03 }}
+                transition={{ delay: Math.min(i * 0.01, 0.15), duration: 0.22 }}
                 whileHover={{ scale: 1.01, backgroundColor: "#f8fafc" }}
                 style={{ transformOrigin: "left center" }}
               >
@@ -1638,7 +1660,6 @@ function TabCameraAI({ students, onMark }) {
     return () => {
       stop();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -1758,7 +1779,10 @@ function TabCameraAI({ students, onMark }) {
    TAB ĐĂNG KÝ KHUÔN MẶT
    ============================================================= */
 function TabDangKyMat({ students }) {
-  const [selected, setSelected] = useState(students[0]?.id || "");
+  const [selectedId, setSelectedId] = useState(students[0]?.id || "");
+  const selected = students.some((student) => student.id === selectedId)
+    ? selectedId
+    : students[0]?.id || "";
   const [status, setStatus] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1766,13 +1790,6 @@ function TabDangKyMat({ students }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const faceapiRef = useRef(null);
-
-  useEffect(() => {
-    if (students.length > 0 && !students.find((s) => s.id === selected)) {
-      setSelected(students[0].id);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [students]);
 
   useEffect(() => {
     async function init() {
@@ -1860,7 +1877,7 @@ function TabDangKyMat({ students }) {
 
       const idx = students.findIndex((s) => s.id === selected);
       if (idx < students.length - 1) {
-        setTimeout(() => setSelected(students[idx + 1].id), 800);
+        setTimeout(() => setSelectedId(students[idx + 1].id), 800);
       }
     } catch (err) {
       setStatus("❌ Lỗi: " + err.message);
@@ -1909,7 +1926,7 @@ function TabDangKyMat({ students }) {
       >
         <select
           value={selected}
-          onChange={(e) => setSelected(e.target.value)}
+          onChange={(e) => setSelectedId(e.target.value)}
           style={{ padding: 10, fontSize: 16 }}
         >
           {students.map((s, i) => (
@@ -1921,7 +1938,7 @@ function TabDangKyMat({ students }) {
 
         <button
           onClick={() => {
-            if (idx > 0) setSelected(students[idx - 1].id);
+            if (idx > 0) setSelectedId(students[idx - 1].id);
           }}
           style={{ background: "#94a3b8" }}
         >
@@ -1929,7 +1946,7 @@ function TabDangKyMat({ students }) {
         </button>
         <button
           onClick={() => {
-            if (idx < students.length - 1) setSelected(students[idx + 1].id);
+            if (idx < students.length - 1) setSelectedId(students[idx + 1].id);
           }}
           style={{ background: "#94a3b8" }}
         >
@@ -1982,7 +1999,6 @@ function TabDangKyMat({ students }) {
 function TabLichSu({
   students,
   ngayXem,
-  danhSachNgay,
   attendanceNgay,
   onDoiNgay,
   onSua,
@@ -2254,8 +2270,50 @@ function AnimatedNumber({ value }) {
   return <motion.span>{roundedValue}</motion.span>;
 }
 
-function TabThongKe({ students, thangThongKe, duLieuThongKe, onDoiThang }) {
+function TabThongKe({ thangThongKe, duLieuThongKe, onDoiThang }) {
   const [sortBy, setSortBy] = useState("ten");
+  const thongKe = duLieuThongKe?.thongKe ?? EMPTY_THONG_KE;
+  const soNgay = duLieuThongKe?.soNgay ?? 0;
+  const dsNgay = duLieuThongKe?.dsNgay ?? [];
+  const tong = useMemo(() => {
+    const totals = { dungGio: 0, diTre: 0, vang: 0, tongBuoi: 0 };
+    thongKe.forEach((entry) => {
+      totals.dungGio += entry.dungGio;
+      totals.diTre += entry.diTre;
+      totals.vang += entry.vang;
+      totals.tongBuoi += entry.tongBuoi;
+    });
+    return totals;
+  }, [thongKe]);
+  const dsSapXep = useMemo(() => {
+    const sorted = [...thongKe];
+    if (sortBy === "ten") {
+      sorted.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sortBy === "dunggio") {
+      sorted.sort((a, b) => b.dungGio - a.dungGio);
+    } else if (sortBy === "tre") {
+      sorted.sort((a, b) => b.diTre - a.diTre);
+    } else if (sortBy === "vang") {
+      sorted.sort((a, b) => b.vang - a.vang);
+    }
+    return sorted;
+  }, [thongKe, sortBy]);
+  const top5Tre = useMemo(
+    () =>
+      thongKe
+        .filter((entry) => entry.diTre > 0)
+        .sort((a, b) => b.diTre - a.diTre)
+        .slice(0, 5),
+    [thongKe]
+  );
+  const top5Vang = useMemo(
+    () =>
+      thongKe
+        .filter((entry) => entry.vang > 0)
+        .sort((a, b) => b.vang - a.vang)
+        .slice(0, 5),
+    [thongKe]
+  );
 
   if (!duLieuThongKe) {
     return (
@@ -2265,33 +2323,7 @@ function TabThongKe({ students, thangThongKe, duLieuThongKe, onDoiThang }) {
     );
   }
 
-  const { soNgay, thongKe, dsNgay } = duLieuThongKe;
-
-  const tongDungGio = thongKe.reduce((s, e) => s + e.dungGio, 0);
-  const tongDiTre = thongKe.reduce((s, e) => s + e.diTre, 0);
-  const tongVang = thongKe.reduce((s, e) => s + e.vang, 0);
-  const tongBuoi = thongKe.reduce((s, e) => s + e.tongBuoi, 0);
-
-  let dsSapXep = [...thongKe];
-  if (sortBy === "ten") {
-    dsSapXep.sort((a, b) => a.name.localeCompare(b.name));
-  } else if (sortBy === "dunggio") {
-    dsSapXep.sort((a, b) => b.dungGio - a.dungGio);
-  } else if (sortBy === "tre") {
-    dsSapXep.sort((a, b) => b.diTre - a.diTre);
-  } else if (sortBy === "vang") {
-    dsSapXep.sort((a, b) => b.vang - a.vang);
-  }
-
-  const top5Tre = [...thongKe]
-    .filter((e) => e.diTre > 0)
-    .sort((a, b) => b.diTre - a.diTre)
-    .slice(0, 5);
-
-  const top5Vang = [...thongKe]
-    .filter((e) => e.vang > 0)
-    .sort((a, b) => b.vang - a.vang)
-    .slice(0, 5);
+  const { dungGio: tongDungGio, diTre: tongDiTre, vang: tongVang } = tong;
 
   function formatThang(t) {
     const [y, m] = t.split("-");
@@ -2460,3 +2492,7 @@ function TabThongKe({ students, thangThongKe, duLieuThongKe, onDoiThang }) {
     </>
   );
 }
+
+const MemoTabDiemDanh = memo(TabDiemDanh);
+const MemoTabLichSu = memo(TabLichSu);
+const MemoTabThongKe = memo(TabThongKe);

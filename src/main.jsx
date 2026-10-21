@@ -1,25 +1,24 @@
-import { StrictMode, useState, useEffect } from "react";
+/* eslint-disable react-refresh/only-export-components */
+import { StrictMode, lazy, Suspense, useState, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { registerSW } from "virtual:pwa-register";
 import "./index.css";
-import App from "./App.jsx";
-import Login from "./Login.jsx";
-import Khach from "./Khach.jsx";
-import ProtectedRoute from "./ProtectedRoute.jsx";
-import ChatBot from "./ChatBot.jsx";
-import { StudentsProvider } from "./StudentsContext.jsx";
+const App = lazy(() => import("./App.jsx"));
+const Login = lazy(() => import("./Login.jsx"));
+const Khach = lazy(() => import("./Khach.jsx"));
+const ProtectedRoute = lazy(() => import("./ProtectedRoute.jsx"));
+const ChatBot = lazy(() => import("./ChatBot.jsx"));
+const StudentsRoute = lazy(() => import("./StudentsRoute.jsx"));
 
 function PWABanner() {
   const [coTheCai, setCoTheCai] = useState(false);
-  const [daCai, setDaCai] = useState(false);
+  const [daCai, setDaCai] = useState(() =>
+    window.matchMedia("(display-mode: standalone)").matches
+  );
   const [prompt, setPrompt] = useState(null);
 
   useEffect(() => {
-    if (window.matchMedia("(display-mode: standalone)").matches) {
-      setDaCai(true);
-      return;
-    }
     const handler = (e) => {
       e.preventDefault();
       setPrompt(e);
@@ -54,20 +53,30 @@ registerSW({ immediate: true });
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <StudentsProvider>
-      <BrowserRouter>
+    <BrowserRouter>
+      <Suspense
+        fallback={
+          <div className="app-loading" role="status">
+            Đang tải...
+          </div>
+        }
+      >
         <Routes>
           <Route path="/" element={<Login />} />
-          <Route path="/khach" element={<Khach />} />
           <Route path="/login" element={<Login />} />
-          <Route element={<ProtectedRoute />}>
-            <Route path="/diemdanhhocsinhlop11A3" element={<App />} />
+          <Route element={<StudentsRoute />}>
+            <Route path="/khach" element={<Khach />} />
+            <Route element={<ProtectedRoute />}>
+              <Route path="/diemdanhhocsinhlop11A3" element={<App />} />
+            </Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+      </Suspense>
+      <Suspense fallback={null}>
         <ChatBot />
-        <PWABanner />
-      </BrowserRouter>
-    </StudentsProvider>
+      </Suspense>
+      <PWABanner />
+    </BrowserRouter>
   </StrictMode>
 );

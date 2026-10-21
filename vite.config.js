@@ -37,6 +37,20 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "vendor-react": ["react", "react-dom", "react-router-dom"],
+          "vendor-firebase": ["firebase/app", "firebase/firestore"],
+          "vendor-chart": ["chart.js", "react-chartjs-2"],
+          "vendor-motion": ["framer-motion"],
+          "vendor-xlsx": ["xlsx"],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000,
+  },
   server: {
     host: true,
   },
