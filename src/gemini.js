@@ -7,60 +7,88 @@ export function resetHistory() {
   history = [];
 }
 
-const SYSTEM_PROMPT = `Bạn là Trợ lý AI của Trường THPT Bình Long, ưu tiên tư vấn nội quy. Nếu được hỏi bạn là ai, hãy giới thiệu ngắn gọn mình là trợ lý nội quy của trường; không tự giới thiệu là trợ lý toán, nhưng vẫn hỗ trợ giải toán khi được yêu cầu.
+const SYSTEM_PROMPT = `Bạn là Trợ lý AI của Trường THPT Bình Long, ưu tiên tư vấn nội quy.
 
-QUY TẮC:
-- Nội quy: trả lời ngắn gọn, chỉ dựa trên tài liệu bên dưới; không bịa. Xưng "mình", gọi người hỏi là "em".
-- Toán: giải các phép tính, phương trình và bài toán cơ bản theo từng bước ngắn gọn. Hiểu ký hiệu √, π, ^, *, /, +, -, =, log, sin, cos, tan, ∑, ∫. Viết công thức bằng $...$ hoặc $$...$$.
-- Chủ đề khác: từ chối lịch sự, nói rằng mình hỗ trợ nội quy và toán.
-- Cuối câu trả lời về nội quy, thêm: "📞 Em liên hệ GVCN hoặc Văn phòng Đoàn trường nhé!"
+QUY TẮC BẮT BUỘC:
+- Nếu được hỏi bạn là ai, giới thiệu ngắn gọn là trợ lý nội quy của trường.
+- Nếu hỏi TOÁN: chỉ giải bài toán và nêu đáp án ngắn gọn, dễ hiểu. Không thêm lời mời hỏi nội quy hoặc câu liên hệ GVCN.
+- Nếu hỏi NỘI QUY: trả lời ngắn gọn, chỉ dựa trên tài liệu bên dưới; không bịa. Xưng "mình", gọi người hỏi là "em". Cuối câu trả lời thêm: "📞 Em liên hệ GVCN hoặc Văn phòng Đoàn trường nhé!"
+- Nếu hỏi chủ đề khác, từ chối lịch sự và nói mình hỗ trợ nội quy và toán.
+- Hiểu ký hiệu √, π, ^, *, /, +, -, =, log, sin, cos, tan, ∑, ∫; trình bày công thức bằng $...$ hoặc $$...$$.
+- Trả lời đúng trọng tâm, không thêm phần giới thiệu hoặc kết luận không cần thiết.
 
 TÀI LIỆU NỘI QUY:
 ${NOI_QUY}`;
 
 export async function hoiChatBot(cauHoi) {
-  try {
-    const response = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        cauHoi,
-        lichSu: history,
-        systemPrompt: SYSTEM_PROMPT,
-      }),
-    });
+  const maxAttempts = 3;
+  let lastError;
 
-    const data = await response.json();
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cauHoi,
+          lichSu: history,
+          systemPrompt: SYSTEM_PROMPT,
+        }),
+      });
 
-    if (!response.ok) {
-      throw new Error(data.error || "Lỗi server");
+      const data = await response.json();
+      const errorMessage = data.error || "Lỗi server";
+      const normalizedError = errorMessage.toLowerCase();
+      const isQuotaError = normalizedError.includes("quota");
+      const isTemporaryError =
+        response.status === 429 ||
+        response.status === 502 ||
+        response.status === 503 ||
+        response.status === 504 ||
+        normalizedError.includes("high demand");
+
+      if (!response.ok) {
+        const error = new Error(errorMessage);
+        error.status = response.status;
+        error.isTemporary = isTemporaryError && !isQuotaError;
+        throw error;
+      }
+
+      const traLoi = data.traLoi;
+
+      history.push({ role: "user", text: cauHoi });
+      history.push({ role: "model", text: traLoi });
+
+      if (history.length > 20) {
+        history = history.slice(-20);
+      }
+
+      return traLoi;
+    } catch (err) {
+      lastError = err;
+      const shouldRetry =
+        attempt < maxAttempts - 1 &&
+        (err.isTemporary || (err.status === undefined && err.name === "TypeError"));
+
+      if (!shouldRetry) break;
+
+      await new Promise((resolve) => setTimeout(resolve, 2000));
     }
-
-    const traLoi = data.traLoi;
-
-    history.push({ role: "user", text: cauHoi });
-    history.push({ role: "model", text: traLoi });
-
-    if (history.length > 20) {
-      history = history.slice(-20);
-    }
-
-    return traLoi;
-  } catch (err) {
-    console.error("Lỗi chatbot:", err);
-
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    const normalizedError = errorMessage.toLowerCase();
-
-    if (normalizedError.includes("high demand")) {
-      return "⏳ Trợ lý đang bận xử lý một lượng lớn câu hỏi. Em vui lòng đợi 1-2 phút rồi thử lại nhé!";
-    }
-    if (normalizedError.includes("quota")) {
-      return "⏳ Hạn mức sử dụng AI hôm nay đã hết. Em đợi 1 phút rồi hỏi lại nhé!";
-    }
-    if (normalizedError.includes("gemini_api_key")) {
-      return "❌ Chatbot chưa cấu hình. Vui lòng báo giáo viên.";
-    }
-    return "❌ Có lỗi xảy ra trong quá trình kết nối. Em thử lại sau ít phút nhé!";
   }
+
+  console.error("Lỗi chatbot:", lastError);
+  const errorMessage =
+    lastError instanceof Error ? lastError.message : String(lastError);
+  const normalizedError = errorMessage.toLowerCase();
+
+  if (normalizedError.includes("quota")) {
+    return "⏳ Hạn mức sử dụng AI hiện đã đạt giới hạn. Em vui lòng thử lại sau nhé!";
+  }
+  if (normalizedError.includes("high demand")) {
+    return "⏳ Trợ lý đang bận xử lý nhiều câu hỏi. Em vui lòng thử lại sau ít phút nhé!";
+  }
+  if (normalizedError.includes("gemini_api_key") || lastError?.status === 500) {
+    return "❌ Chatbot chưa cấu hình hoặc đang gặp sự cố máy chủ. Vui lòng báo giáo viên.";
+  }
+  return "❌ Hệ thống đang bận. Em đợi một chút rồi thử lại nhé!";
 }
