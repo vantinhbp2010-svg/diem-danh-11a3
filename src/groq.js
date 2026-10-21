@@ -69,6 +69,30 @@ async function docSseStream(reader, onChunk) {
   return fullText;
 }
 
+function layThoiGianCho(retryAfter) {
+  if (!retryAfter) return null;
+
+  const seconds = Number(retryAfter);
+  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
+
+  const retryAt = Date.parse(retryAfter);
+  return Number.isNaN(retryAt) ? null : Math.max(0, retryAt - Date.now());
+}
+
+async function choVaCapNhatTrangThai(milliseconds, onChunk, message) {
+  const deadline = Date.now() + milliseconds;
+  while (true) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) return;
+
+    const seconds = Math.ceil(remaining / 1000);
+    onChunk?.("", `${message} Còn khoảng ${seconds} giây...`);
+    await new Promise((resolve) =>
+      setTimeout(resolve, Math.min(1000, remaining))
+    );
+  }
+}
+
 export async function hoiChatBot(cauHoi, onChunk) {
   const maxAttempts = 3;
   let lastError;
@@ -102,6 +126,7 @@ export async function hoiChatBot(cauHoi, onChunk) {
         error.retryAfter =
           response.headers.get("retry-after") || data.retryAfter || null;
         error.isTemporary = isTemporaryError && !isQuotaError;
+        error.isRateLimited = response.status === 429;
         throw error;
       }
 
@@ -131,11 +156,28 @@ export async function hoiChatBot(cauHoi, onChunk) {
       const shouldRetry =
         attempt < maxAttempts - 1 &&
         !streamStarted &&
-        (err.isTemporary || (err.status === undefined && err.name === "TypeError"));
+        (err.isRateLimited ||
+          err.isTemporary ||
+          (err.status === undefined && err.name === "TypeError"));
 
       if (!shouldRetry) break;
 
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      if (err.isRateLimited) {
+        const retryDelay =
+          layThoiGianCho(err.retryAfter) ?? 1000 * 2 ** attempt;
+        await choVaCapNhatTrangThai(
+          retryDelay,
+          onChunk,
+          "⏳ Đang chờ Groq cho phép thử lại."
+        );
+      } else {
+        const retryDelay = 1000 * 2 ** (attempt + 1);
+        await choVaCapNhatTrangThai(
+          retryDelay,
+          onChunk,
+          "Đang kết nối lại với trợ lý."
+        );
+      }
     }
   }
 
