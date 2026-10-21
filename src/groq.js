@@ -1,4 +1,4 @@
-import { NOI_QUY } from "./noidung";
+import { NOI_QUY } from "./noidung.js";
 
 // Lịch sử trò chuyện
 let history = [];
@@ -20,11 +20,62 @@ QUY TẮC BẮT BUỘC:
 TÀI LIỆU NỘI QUY:
 ${NOI_QUY}`;
 
-export async function hoiChatBot(cauHoi) {
+async function docSseStream(reader, onChunk) {
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let fullText = "";
+
+  function xuLyEvent(event) {
+    const data = event
+      .split("\n")
+      .filter((line) => line.startsWith("data:"))
+      .map((line) => line.slice(5).trimStart())
+      .join("\n");
+    if (!data || data === "[DONE]") return;
+
+    let payload;
+    try {
+      payload = JSON.parse(data);
+    } catch (err) {
+      throw new Error("Phản hồi streaming từ AI không hợp lệ.", { cause: err });
+    }
+
+    if (payload.error) throw new Error(payload.error);
+
+    const chunk = payload.choices?.[0]?.delta?.content;
+    if (typeof chunk === "string" && chunk) {
+      fullText += chunk;
+      onChunk?.(chunk, fullText);
+    }
+  }
+
+  while (true) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value, { stream: !done }).replace(/\r\n/g, "\n");
+
+    let separator = buffer.indexOf("\n\n");
+    while (separator !== -1) {
+      xuLyEvent(buffer.slice(0, separator));
+      buffer = buffer.slice(separator + 2);
+      separator = buffer.indexOf("\n\n");
+    }
+
+    if (done) {
+      if (buffer.trim()) xuLyEvent(buffer);
+      break;
+    }
+  }
+
+  return fullText;
+}
+
+export async function hoiChatBot(cauHoi, onChunk) {
   const maxAttempts = 3;
   let lastError;
+  let streamedText = "";
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    let streamStarted = false;
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
@@ -36,17 +87,15 @@ export async function hoiChatBot(cauHoi) {
         }),
       });
 
-      const data = await response.json();
-      const errorMessage = data.error || "Lỗi server";
-      const normalizedError = errorMessage.toLowerCase();
-      const isQuotaError = normalizedError.includes("quota");
-      const isTemporaryError =
-        response.status === 502 ||
-        response.status === 503 ||
-        response.status === 504 ||
-        normalizedError.includes("high demand");
-
       if (!response.ok) {
+        const data = await response.json();
+        const errorMessage = data.error || "Lỗi server";
+        const normalizedError = errorMessage.toLowerCase();
+        const isQuotaError = normalizedError.includes("quota");
+        const isTemporaryError =
+          response.status === 502 ||
+          response.status === 503 ||
+          response.status === 504;
         const error = new Error(errorMessage);
         error.status = response.status;
         error.code = data.code;
@@ -56,7 +105,18 @@ export async function hoiChatBot(cauHoi) {
         throw error;
       }
 
-      const traLoi = data.traLoi;
+      if (!response.body) {
+        throw new Error("Trình duyệt không hỗ trợ nhận phản hồi streaming.");
+      }
+
+      streamStarted = true;
+      const traLoi = await docSseStream(response.body.getReader(), (chunk, fullText) => {
+        streamedText = fullText;
+        onChunk?.(chunk, fullText);
+      });
+      if (!traLoi.trim()) {
+        throw new Error("Dịch vụ AI chưa trả về câu trả lời.");
+      }
 
       history.push({ role: "user", text: cauHoi });
       history.push({ role: "model", text: traLoi });
@@ -70,6 +130,7 @@ export async function hoiChatBot(cauHoi) {
       lastError = err;
       const shouldRetry =
         attempt < maxAttempts - 1 &&
+        !streamStarted &&
         (err.isTemporary || (err.status === undefined && err.name === "TypeError"));
 
       if (!shouldRetry) break;
@@ -79,9 +140,9 @@ export async function hoiChatBot(cauHoi) {
   }
 
   console.error("Lỗi chatbot:", lastError);
-  const errorMessage =
-    lastError instanceof Error ? lastError.message : String(lastError);
-  const normalizedError = errorMessage.toLowerCase();
+  if (streamedText) {
+    return `${streamedText}\n\n⚠️ Kết nối bị gián đoạn trước khi hoàn tất câu trả lời.`;
+  }
 
   if (lastError?.code === "MISSING_API_KEY") {
     return "❌ Chatbot chưa được cấu hình Groq API. Vui lòng báo giáo viên.";
@@ -100,11 +161,11 @@ export async function hoiChatBot(cauHoi) {
     }
     return "⏳ Groq đang giới hạn yêu cầu. Em vui lòng thử lại sau ít phút nhé!";
   }
-  if (normalizedError.includes("quota")) {
-    return "⏳ Hạn mức sử dụng AI hiện đã đạt giới hạn. Em vui lòng thử lại sau nhé!";
-  }
   if (lastError?.status === 500) {
     return "❌ Chatbot chưa cấu hình hoặc đang gặp sự cố máy chủ. Vui lòng báo giáo viên.";
+  }
+  if (lastError?.status === 429) {
+    return "⏳ Groq đang giới hạn yêu cầu. Em vui lòng thử lại sau nhé!";
   }
   return "❌ Hệ thống đang bận. Em đợi một chút rồi thử lại nhé!";
 }

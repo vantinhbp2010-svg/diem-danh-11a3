@@ -28,14 +28,50 @@ export default function ChatBot() {
     const cauHoi = input.trim();
     if (!cauHoi || dangGoi) return;
 
-    setTinNhan((prev) => [...prev, { vai: "user", noiDung: cauHoi }]);
+    setTinNhan((prev) => [
+      ...prev,
+      { vai: "user", noiDung: cauHoi },
+      { vai: "bot", noiDung: "" },
+    ]);
     setInput("");
     setDangGoi(true);
 
-    const traLoi = await hoiChatBot(cauHoi);
+    try {
+      const traLoi = await hoiChatBot(cauHoi, (_chunk, fullText) => {
+        setTinNhan((prev) => {
+          const updated = [...prev];
+          const lastIndex = updated.length - 1;
+          if (lastIndex >= 0 && updated[lastIndex].vai === "bot") {
+            updated[lastIndex] = { vai: "bot", noiDung: fullText };
+          }
+          return updated;
+        });
+      });
 
-    setTinNhan((prev) => [...prev, { vai: "bot", noiDung: traLoi }]);
-    setDangGoi(false);
+      setTinNhan((prev) => {
+        const updated = [...prev];
+        const lastIndex = updated.length - 1;
+        if (lastIndex >= 0 && updated[lastIndex].vai === "bot") {
+          updated[lastIndex] = { vai: "bot", noiDung: traLoi };
+        }
+        return updated;
+      });
+    } catch (err) {
+      console.error("Lỗi nhận phản hồi chatbot:", err);
+      setTinNhan((prev) => {
+        const updated = [...prev];
+        const lastIndex = updated.length - 1;
+        if (lastIndex >= 0 && updated[lastIndex].vai === "bot") {
+          updated[lastIndex] = {
+            vai: "bot",
+            noiDung: "❌ Không thể nhận câu trả lời lúc này. Em thử lại sau nhé!",
+          };
+        }
+        return updated;
+      });
+    } finally {
+      setDangGoi(false);
+    }
   }
 
   function handleKeyDown(e) {
@@ -129,7 +165,7 @@ export default function ChatBot() {
                   </div>
                 </div>
               ))}
-              {dangGoi && (
+              {dangGoi && tinNhan[tinNhan.length - 1]?.noiDung === "" && (
                 <div className="chatbot-tin bot">
                   <div className="chatbot-bubble chatbot-dang-goi">
                     <span></span>

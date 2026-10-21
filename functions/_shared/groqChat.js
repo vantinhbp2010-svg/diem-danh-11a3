@@ -1,21 +1,18 @@
 const GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODEL = "openai/gpt-oss-20b";
 
-export async function createGroqChatResult(body, apiKey, fetcher = fetch) {
+function errorResult(status, code, error, retryAfter = null) {
+  return {
+    status,
+    retryAfter,
+    body: { code, error, ...(retryAfter ? { retryAfter } : {}) },
+  };
+}
+
+export function buildGroqMessages(body) {
   const { cauHoi, lichSu, systemPrompt } = body || {};
-
   if (typeof cauHoi !== "string" || !cauHoi.trim()) {
-    return { status: 400, body: { error: "Thiếu câu hỏi" } };
-  }
-
-  if (!apiKey) {
-    return {
-      status: 500,
-      body: {
-        code: "MISSING_API_KEY",
-        error: "Chưa cấu hình GROQ_API_KEY trên máy chủ.",
-      },
-    };
+    return { error: errorResult(400, "INVALID_QUESTION", "Thiếu câu hỏi") };
   }
 
   const messages = [];
@@ -34,6 +31,20 @@ export async function createGroqChatResult(body, apiKey, fetcher = fetch) {
   }
 
   messages.push({ role: "user", content: cauHoi.trim() });
+  return { messages };
+}
+
+export async function createGroqChatStream(body, apiKey, fetcher = fetch) {
+  const { messages, error } = buildGroqMessages(body);
+  if (error) return error;
+
+  if (!apiKey) {
+    return errorResult(
+      500,
+      "MISSING_API_KEY",
+      "Chưa cấu hình GROQ_API_KEY trên máy chủ."
+    );
+  }
 
   try {
     const response = await fetcher(GROQ_CHAT_URL, {
@@ -47,63 +58,51 @@ export async function createGroqChatResult(body, apiKey, fetcher = fetch) {
         messages,
         temperature: 0.5,
         max_completion_tokens: 1024,
+        stream: true,
       }),
     });
 
-    const data = await response.json();
     if (!response.ok) {
+      const data = await response.json();
       console.error("Groq API trả lỗi:", response.status, data.error?.type);
       if (response.status === 429) {
-        const retryAfter = response.headers.get("retry-after");
-        return {
-          status: 429,
-          retryAfter,
-          body: {
-            code: "RATE_LIMITED",
-            error: "Groq đang giới hạn tần suất yêu cầu.",
-            retryAfter,
-          },
-        };
+        return errorResult(
+          429,
+          "RATE_LIMITED",
+          "Groq đang giới hạn tần suất yêu cầu.",
+          response.headers.get("retry-after")
+        );
       }
       if (response.status === 401 || response.status === 403) {
-        return {
-          status: 500,
-          body: {
-            code: "INVALID_API_KEY",
-            error: "Máy chủ chưa xác thực được với Groq.",
-          },
-        };
+        return errorResult(
+          500,
+          "INVALID_API_KEY",
+          "Máy chủ chưa xác thực được với Groq."
+        );
       }
-      return {
-        status: 502,
-        body: {
-          code: "PROVIDER_ERROR",
-          error: "Dịch vụ AI tạm thời không xử lý được yêu cầu.",
-        },
-      };
+      return errorResult(
+        502,
+        "PROVIDER_ERROR",
+        "Dịch vụ AI tạm thời không xử lý được yêu cầu."
+      );
     }
 
-    const traLoi = data.choices?.[0]?.message?.content;
-    if (typeof traLoi !== "string" || !traLoi.trim()) {
-      console.error("Groq API trả về nội dung rỗng.");
-      return {
-        status: 502,
-        body: {
-          code: "EMPTY_RESPONSE",
-          error: "Dịch vụ AI chưa trả về câu trả lời.",
-        },
-      };
+    if (!response.body) {
+      console.error("Groq API không trả stream body.");
+      return errorResult(
+        502,
+        "EMPTY_RESPONSE",
+        "Dịch vụ AI chưa trả về câu trả lời."
+      );
     }
 
-    return { status: 200, body: { traLoi } };
+    return { status: 200, stream: response.body };
   } catch (err) {
     console.error("Lỗi kết nối Groq:", err);
-    return {
-      status: 502,
-      body: {
-        code: "PROVIDER_UNAVAILABLE",
-        error: "Không kết nối được với dịch vụ AI.",
-      },
-    };
+    return errorResult(
+      502,
+      "PROVIDER_UNAVAILABLE",
+      "Không kết nối được với dịch vụ AI."
+    );
   }
 }
