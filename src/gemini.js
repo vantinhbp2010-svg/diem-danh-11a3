@@ -54,12 +54,18 @@ export async function hoiChatBot(cauHoi) {
   } catch (err) {
     console.error("Lỗi chatbot:", err);
 
-    if (err.message.includes("quota")) {
-      return "⏳ Chatbot đang quá tải. Em đợi 1 phút rồi hỏi lại nhé!";
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    const normalizedError = errorMessage.toLowerCase();
+
+    if (normalizedError.includes("high demand")) {
+      return "⏳ Trợ lý đang bận xử lý một lượng lớn câu hỏi. Em vui lòng đợi 1-2 phút rồi thử lại nhé!";
     }
-    if (err.message.includes("GEMINI_API_KEY")) {
+    if (normalizedError.includes("quota")) {
+      return "⏳ Hạn mức sử dụng AI hôm nay đã hết. Em đợi 1 phút rồi hỏi lại nhé!";
+    }
+    if (normalizedError.includes("gemini_api_key")) {
       return "❌ Chatbot chưa cấu hình. Vui lòng báo giáo viên.";
     }
-    return "❌ Có lỗi xảy ra: " + err.message;
+    return "❌ Có lỗi xảy ra trong quá trình kết nối. Em thử lại sau ít phút nhé!";
   }
 }

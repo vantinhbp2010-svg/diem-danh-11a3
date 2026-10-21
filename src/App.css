@@ -1756,6 +1756,8 @@ body:has(.login-page) {
 
 .chatbot-tin {
   display: flex;
+  flex-shrink: 0;
+  min-width: 0;
 }
 
 .chatbot-tin.user { justify-content: flex-end; }
@@ -1763,12 +1765,15 @@ body:has(.login-page) {
 
 .chatbot-bubble {
   max-width: 80%;
+  min-width: 0;
   padding: 10px 14px;
   border-radius: 16px;
   font-size: 13.5px;
   line-height: 1.55;
   white-space: pre-wrap;
   word-break: break-word;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .chatbot-bubble > :first-child { margin-top: 0; }
