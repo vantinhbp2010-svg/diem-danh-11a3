@@ -1705,6 +1705,11 @@ body:has(.login-page) {
   right: 24px;
   width: 440px;
   height: 650px;
+  min-width: 320px;
+  min-height: 400px;
+  max-width: 90vw;
+  max-height: 90vh;
+  resize: both;
   background: var(--surface);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-xl);
