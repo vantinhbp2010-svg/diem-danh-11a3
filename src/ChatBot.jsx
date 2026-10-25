@@ -176,6 +176,11 @@ export default function ChatBot() {
               )}
             </div>
 
+            {/* Nhắc người dùng tránh gửi tin nhắn quá nhanh */}
+            <div className="chatbot-note">
+              ⚠️ Vui lòng không gửi tin nhắn quá nhanh để tránh bị giới hạn.
+            </div>
+
             <div className="chatbot-input">
               <input
                 type="text"
