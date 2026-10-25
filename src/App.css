@@ -2685,10 +2685,16 @@ textarea:focus-visible {
   .top-grid { grid-template-columns: 1fr; }
 
   .chatbot-khung {
-    width: calc(100% - 20px);
+    left: 16px;
+    right: 16px;
+    width: auto;
+    min-width: 0;
+    max-width: none;
     height: calc(100vh - 100px);
-    bottom: 10px;
-    right: 10px;
+    max-height: 600px;
+    bottom: 20px;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
   }
   .chatbot-nut-noi {
     bottom: 15px;
@@ -3089,6 +3095,13 @@ textarea:focus-visible {
   .chatbot-nut-noi, .chatbot-khung {
     bottom: max(24px, env(safe-area-inset-bottom, 24px));
     right: max(24px, env(safe-area-inset-right, 24px));
+  }
+  @media (max-width: 768px) {
+    .chatbot-khung {
+      bottom: max(20px, env(safe-area-inset-bottom, 20px));
+      left: max(16px, env(safe-area-inset-left, 16px));
+      right: max(16px, env(safe-area-inset-right, 16px));
+    }
   }
 }
 
