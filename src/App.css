@@ -1703,8 +1703,8 @@ body:has(.login-page) {
   position: fixed;
   bottom: 24px;
   right: 24px;
-  width: 380px;
-  height: 580px;
+  width: 440px;
+  height: 650px;
   background: var(--surface);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-xl);
@@ -1801,8 +1801,8 @@ body:has(.login-page) {
   min-width: 0;
   padding: 10px 14px;
   border-radius: 16px;
-  font-size: 13.5px;
-  line-height: 1.55;
+  font-size: 14.5px;
+  line-height: 1.5 !important;
   white-space: pre-wrap;
   word-break: break-word;
   word-wrap: break-word;
@@ -1811,9 +1811,13 @@ body:has(.login-page) {
 
 .chatbot-bubble > :first-child { margin-top: 0; }
 .chatbot-bubble > :last-child { margin-bottom: 0; }
-.chatbot-bubble p { margin: 0 0 0.75em; }
+.chatbot-bubble p { margin: 0 0 6px !important; }
 .chatbot-bubble ul,
-.chatbot-bubble ol { padding-left: 1.5em; }
+.chatbot-bubble ol {
+  margin: 4px 0 6px !important;
+  padding-left: 18px !important;
+}
+.chatbot-bubble li { margin-bottom: 2px !important; }
 .chatbot-bubble .katex-display { overflow-x: auto; overflow-y: hidden; }
 
 .chatbot-tin.user .chatbot-bubble {
@@ -1848,12 +1852,17 @@ body:has(.login-page) {
 
 .chatbot-note {
   text-align: center;
-  font-size: 11px;
-  color: #94a3b8;
-  padding: 6px 12px;
-  background: #f8fafc;
-  border-top: 1px dashed #e2e8f0;
-  font-style: italic;
+  font-size: 13px;
+  font-weight: 600;
+  color: #b45309;
+  padding: 10px 12px;
+  background: #fef3c7;
+  border-top: 1px solid #fde68a;
+  border-bottom: 1px solid #fde68a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 @keyframes typing {
