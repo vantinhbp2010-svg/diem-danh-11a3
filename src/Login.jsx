@@ -1,28 +1,41 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { isLoggedIn, login } from "./auth";
+import { login, subscribeTeacherState } from "./auth";
 import "./App.css";
 
 export default function Login() {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (isLoggedIn()) {
-      navigate("/diemdanhhocsinhlop11A3", { replace: true });
-    }
+    return subscribeTeacherState(({ user, isTeacher, error: authError }) => {
+      if (isTeacher) {
+        navigate("/diemdanhhocsinhlop11A3", { replace: true });
+      } else if (authError) {
+        setError(`Không thể xác thực tài khoản: ${authError.message}`);
+      } else if (user) {
+        setError("Tài khoản chưa được cấp quyền giáo viên.");
+      }
+    });
   }, [navigate]);
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
-    const res = login(username, password);
-    if (res.ok) {
-      navigate("/diemdanhhocsinhlop11A3");
-    } else {
-      setError(res.message);
+    setError("");
+    setLoading(true);
+    try {
+      const res = await login(email.trim(), password);
+      if (res.ok) {
+        navigate("/diemdanhhocsinhlop11A3");
+      } else {
+        setError(res.message);
+      }
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -78,23 +91,23 @@ export default function Login() {
             <span className="login-lock" aria-hidden="true">🔐</span>
             <span>Đăng nhập</span>
           </h2>
-          <p className="login-subtitle">Nhập tài khoản để tiếp tục</p>
+          <p className="login-subtitle">Đăng nhập bằng tài khoản giáo viên</p>
 
           <form onSubmit={handleSubmit}>
             <div className="input-group">
-              <label htmlFor="login-username">Tên đăng nhập</label>
+              <label htmlFor="login-email">Email</label>
               <div className="input-control">
                 <span className="input-icon" aria-hidden="true">👤</span>
                 <input
-                  id="login-username"
-                  type="text"
-                  aria-label="Tên đăng nhập"
-                  placeholder="Ví dụ: giaovien"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  id="login-email"
+                  type="email"
+                  aria-label="Email"
+                  placeholder="giaovien@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                   autoFocus
-                  autoComplete="username"
+                  autoComplete="email"
                 />
               </div>
             </div>
@@ -126,9 +139,9 @@ export default function Login() {
               </div>
             </div>
 
-            <button type="submit" className="btn-login">
+            <button type="submit" className="btn-login" disabled={loading}>
               <span className="login-rocket" aria-hidden="true">🚀</span>
-              Đăng nhập
+              {loading ? "Đang đăng nhập..." : "Đăng nhập"}
             </button>
           </form>
 
@@ -137,7 +150,7 @@ export default function Login() {
           <div className="login-hint">
             <p>
               <span className="hint-icon" aria-hidden="true">💡</span>
-              Tài khoản mặc định: <b>giaovien</b> / <b>123456</b>
+              Tài khoản được quản trị viên tạo trong Firebase Authentication.
             </p>
           </div>
 

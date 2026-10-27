@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useStudents } from "./StudentsContext";
-import { getAttendance } from "./storage";
+import { getAttendanceByMonth } from "./storage";
+import { layNgayHomNay } from "./thoiKhoaBieu";
 import News from "./News";
 import "./App.css";
 
@@ -9,33 +10,25 @@ export default function Khach() {
   const { students, maLop, danhSachLop, chonLop } = useStudents();
   const [tab, setTab] = useState("bang");
   const [attendance, setAttendance] = useState({});
-  const [today, setToday] = useState("");
+  const [today, setToday] = useState(() => layNgayHomNay());
   const [buoiDangChon, setBuoiDangChon] = useState("sang");
 
-  useEffect(() => {
-    const d = new Date().toISOString().slice(0, 10);
-    setToday(d);
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Reload data khi đổi lớp
-  useEffect(() => {
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [maLop]);
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     try {
-      const data = await getAttendance();
-      const d = new Date().toISOString().slice(0, 10);
+      const d = layNgayHomNay();
+      setToday(d);
+      const data = await getAttendanceByMonth(d.slice(0, 7));
       setAttendance(data[d] || {});
     } catch (err) {
       console.error("Lỗi tải dữ liệu:", err);
     }
-  }
+  }, []);
 
-  const total = students.length;
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Load data asynchronously from Firestore.
+    loadData();
+  }, [loadData, maLop]);
+
   const chuaCoLop = !maLop || students.length === 0;
 
   return (
@@ -173,7 +166,6 @@ export default function Khach() {
                 students={students}
                 attendance={attendance}
                 today={today}
-                total={total}
                 buoi={buoiDangChon}
               />
             </>
@@ -187,7 +179,7 @@ export default function Khach() {
 }
 
 /* ---------- BẢNG ĐIỂM DANH CHO KHÁCH ---------- */
-function TabBangKhach({ students, attendance, today, total, buoi }) {
+function TabBangKhach({ students, attendance, today, buoi }) {
   const dem = { "Đúng giờ": 0, "Đi trễ": 0, "Vắng": 0 };
   students.forEach((s) => {
     const a = (attendance[s.id] || {})[buoi];

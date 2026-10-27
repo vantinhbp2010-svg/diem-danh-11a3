@@ -48,7 +48,6 @@ export async function xoaLop(maLop) {
   // Bước 1: Lấy DS HS của lớp trước khi xóa
   const dsHS = (await getDSLop(maLop)) || [];
   const maHSList = dsHS.map((s) => s.id);
-  const maHSSet = new Set(maHSList);
 
   // Bước 2: Xóa DS HS khỏi collection lop
   const ref = doc(db, "lop", maLop);
@@ -59,63 +58,20 @@ export async function xoaLop(maLop) {
   delete ds[maLop];
   await saveDanhSachLop(ds);
 
-  // Bước 4: Xóa HS khỏi diemdanh/all (tất cả các ngày)
+  // Bước 4: Xóa điểm danh của học sinh khỏi tất cả các tháng
   try {
-    const { getAttendance, saveAttendance } = await import("./storage");
-    const dataAll = await getAttendance();
-    let coThayDoi = false;
-
-    Object.keys(dataAll).forEach((ngay) => {
-      Object.keys(dataAll[ngay]).forEach((maHS) => {
-        if (maHSSet.has(maHS)) {
-          delete dataAll[ngay][maHS];
-          coThayDoi = true;
-        }
-      });
-
-      if (Object.keys(dataAll[ngay]).length === 0) {
-        delete dataAll[ngay];
-      }
-    });
-
-    if (coThayDoi) {
-      await saveAttendance(dataAll);
-    }
+    const { removeStudentsFromAttendance } = await import("./storage");
+    await removeStudentsFromAttendance(maHSList);
   } catch (e) {
-    console.warn("Lỗi xóa diemdanh/all:", e);
+    console.warn("Lỗi xóa điểm danh:", e);
   }
 
-  // Bước 5: Xóa khuôn mặt của HS lớp này (diemdanh/faces)
-  // Xóa theo CẢ 2 format mã HS: "11A3-001" và "HS001"
+  // Bước 5: Xóa khuôn mặt của học sinh khỏi dữ liệu riêng của lớp
   try {
-    const { doc: docFn, getDoc: getDocFn, setDoc: setDocFn } = await import("firebase/firestore");
-    const facesRef = docFn(db, "diemdanh", "faces");
-    const facesSnap = await getDocFn(facesRef);
-    const facesData = facesSnap.exists() ? facesSnap.data().data || {} : {};
-
-    // Tập hợp mã HS cần xóa (cả 2 format)
-    const maHSCanXoa = new Set();
-    maHSList.forEach((ma) => {
-      maHSCanXoa.add(ma);                                    // "11A3-001"
-      const soCuoi = String(ma).match(/(\d+)$/);
-      if (soCuoi) maHSCanXoa.add(`HS${soCuoi[1]}`);          // "HS001"
-    });
-
-    console.log("🗑️ Mã HS cần xóa khuôn mặt:", [...maHSCanXoa]);
-
-    let soMatDaXoa = 0;
-    Object.keys(facesData).forEach((maHS) => {
-      if (maHSCanXoa.has(maHS)) {
-        delete facesData[maHS];
-        soMatDaXoa++;
-      }
-    });
-
-    if (soMatDaXoa > 0) {
-      await setDocFn(facesRef, { data: facesData });
-      console.log(`✅ Đã xóa ${soMatDaXoa} khuôn mặt`);
-    } else {
-      console.log("ℹ️ Không có khuôn mặt nào cần xóa");
+    const { getFaces, clearFaces } = await import("./faceStorage");
+    const faces = await getFaces(maLop);
+    for (const studentId of Object.keys(faces)) {
+      await clearFaces(maLop, studentId);
     }
   } catch (e) {
     console.warn("Lỗi xóa faces:", e);
@@ -135,16 +91,10 @@ export async function xoaLop(maLop) {
     console.warn("Lỗi xóa thiDua:", e);
   }
 
-  // Bước 7: Xóa TKB của lớp
+  // Bước 7: Xóa TKB riêng của lớp
   try {
-    const { doc: docFn, getDoc: getDocFn, setDoc: setDocFn } = await import("firebase/firestore");
-    const tkbRef = docFn(db, "diemdanh", "thoiKhoaBieu");
-    const tkbSnap = await getDocFn(tkbRef);
-    const tkbAll = tkbSnap.exists() ? tkbSnap.data().data || {} : {};
-    if (tkbAll[maLop]) {
-      delete tkbAll[maLop];
-      await setDocFn(tkbRef, { data: tkbAll });
-    }
+    const { xoaTKB } = await import("./tkbStorage");
+    await xoaTKB(maLop);
   } catch (e) {
     console.warn("Lỗi xóa TKB:", e);
   }

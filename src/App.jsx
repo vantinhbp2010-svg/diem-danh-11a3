@@ -7,6 +7,7 @@ import {
   useState,
   useEffect,
   useRef,
+  Component,
 } from "react";
 import {
   AnimatePresence,
@@ -24,7 +25,7 @@ import {
   layThuHienTai,
 } from "./thoiKhoaBieu";
 import {
-  getAttendance,
+  getAttendanceByMonth,
   markAttendance,
   xoaDiemDanh,
   xoaTatCaCuaHocSinh,
@@ -34,7 +35,7 @@ import {
   tinhThongKeThang,
   xacNhanKhongVang,
 } from "./storage";
-import { logout, getUser } from "./auth";
+import { logout, getUser, subscribeTeacherState } from "./auth";
 import { useStudents } from "./StudentsContext";
 import "./App.css";
 
@@ -42,6 +43,7 @@ const News = lazy(() => import("./News"));
 const TabThiDua = lazy(() => import("./TabThiDua"));
 const QuanLyLop = lazy(() => import("./QuanLyLop"));
 const TabThoiKhoaBieu = lazy(() => import("./TabThoiKhoaBieu"));
+const TabQuanLyTaiKhoan = lazy(() => import("./TabQuanLyTaiKhoan"));
 const EMPTY_THONG_KE = [];
 
 function SkeletonLoading() {
@@ -54,9 +56,49 @@ function SkeletonLoading() {
   );
 }
 
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div
+          style={{
+            padding: 20,
+            color: "#dc2626",
+            background: "#fee2e2",
+            borderRadius: 10,
+            margin: "20px 0",
+          }}
+        >
+          <h4 style={{ margin: "0 0 10px" }}>
+            ⚠️ Có lỗi xảy ra khi tải tính năng này
+          </h4>
+          <p style={{ margin: 0, fontSize: 14 }}>
+            {this.state.error?.message}
+          </p>
+          <p style={{ margin: "10px 0 0", fontSize: 13 }}>
+            Vui lòng tải lại trang hoặc kiểm tra cấu hình Server (Vercel API).
+          </p>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 export default function App() {
   const [nhom, setNhom] = useState("diemdanh");
   const [tabCon, setTabCon] = useState("homnay");
+  const [isAdmin, setIsAdmin] = useState(false);
   const [attendance, setAttendance] = useState({});
   const [today, setToday] = useState(() => layNgayHomNay());
   const [msg, setMsg] = useState("");
@@ -72,11 +114,17 @@ export default function App() {
   const user = getUser();
   const { students, maLop, danhSachLop, chonLop } = useStudents();
 
+  useEffect(() => {
+    return subscribeTeacherState(({ isAdmin: admin }) => {
+      setIsAdmin(admin === true);
+    });
+  }, []);
+
   const loadData = useCallback(async () => {
     try {
-      const data = await getAttendance();
       const d = layNgayHomNay();
-      setAttendance(data[d] || {});
+      const monthData = await getAttendanceByMonth(d.slice(0, 7));
+      setAttendance(monthData[d] || {});
     } catch (err) {
       console.error("Lỗi tải dữ liệu:", err);
       setMsg("Lỗi tải dữ liệu từ cloud: " + err.message);
@@ -96,10 +144,10 @@ export default function App() {
   // ============ LOAD DATA ============
   const refresh = useCallback(async () => {
     try {
-      const data = await getAttendance();
       const currentDate = layNgayHomNay();
+      const monthData = await getAttendanceByMonth(currentDate.slice(0, 7));
       setToday(currentDate);
-      setAttendance(data[currentDate] || {});
+      setAttendance(monthData[currentDate] || {});
     } catch (err) {
       console.error(err);
     }
@@ -149,8 +197,8 @@ export default function App() {
 
   const handleSuaHomNay = useCallback(async (id, buoi, tiet, status, time) => {
     try {
-      const data = await getAttendance();
       const todayStr = layNgayHomNay();
+      const data = await getAttendanceByMonth(todayStr.slice(0, 7));
       if (!data[todayStr]) data[todayStr] = {};
       if (!data[todayStr][id]) data[todayStr][id] = {};
       if (!data[todayStr][id][buoi]) data[todayStr][id][buoi] = {};
@@ -167,7 +215,7 @@ export default function App() {
         diemTru,
       };
       const { saveAttendance } = await import("./storage");
-      await saveAttendance(data);
+      await saveAttendance(data, todayStr.slice(0, 7));
 
       setMsg(`✅ Đã sửa điểm danh`);
       await refresh();
@@ -217,14 +265,14 @@ export default function App() {
 
     try {
       setMsg(`⏳ Đang xóa dữ liệu của ${hs?.name}...`);
-      await xoaTatCaCuaHocSinh(id);
+      await xoaTatCaCuaHocSinh(id, maLop);
       setMsg(`✅ Đã xóa toàn bộ dữ liệu của ${hs?.name}`);
       await refresh();
       setTimeout(() => setMsg(""), 3000);
     } catch (err) {
       setMsg("❌ Lỗi xóa: " + err.message);
     }
-  }, [students, refresh]);
+  }, [students, maLop, refresh]);
 
   // ============ LỊCH SỬ ============
   const loadLichSu = useCallback(async () => {
@@ -311,14 +359,10 @@ export default function App() {
     )
       return;
     try {
-      const { saveAttendance } = await import("./storage");
-      await saveAttendance({});
-      const { getFaces } = await import("./faceStorage");
-      const faces = await getFaces();
-      for (const id of Object.keys(faces)) {
-        const { clearFaces } = await import("./faceStorage");
-        await clearFaces(id);
-      }
+      const { clearAllAttendance } = await import("./storage");
+      const { clearAllFaces } = await import("./faceStorage");
+      await clearAllAttendance();
+      await clearAllFaces();
       alert("✅ Đã xóa hết dữ liệu!");
       window.location.reload();
     } catch (err) {
@@ -329,21 +373,35 @@ export default function App() {
   async function handleBackupFirebase() {
     try {
       const { db } = await import("./firebase");
-      const { collection, doc, getDoc, getDocs } = await import("firebase/firestore");
+      const { collection, getDocs } = await import("firebase/firestore");
 
-      const snapshot = { generatedAt: new Date().toISOString(), app: "diem-danh-11a3" };
-      const primaryDocs = ["all", "faces", "thiDua", "thoiKhoaBieu", "ngayNghi"];
-
-      for (const name of primaryDocs) {
-        const ref = doc(db, "diemdanh", name);
-        const data = await getDoc(ref);
-        snapshot[`diemdanh_${name}`] = data.exists() ? data.data() : null;
-      }
+      const snapshot = {
+        generatedAt: new Date().toISOString(),
+        app: "diem-danh-11a3",
+        data: {},
+      };
+      const attendanceDocs = await getDocs(collection(db, "diemdanh"));
+      attendanceDocs.forEach((entry) => {
+        snapshot.data[`diemdanh/${entry.id}`] = entry.data();
+      });
 
       const lopSnap = await getDocs(collection(db, "lop"));
-      snapshot.lop = {};
-      lopSnap.forEach((entry) => {
-        snapshot.lop[entry.id] = entry.data();
+      for (const entry of lopSnap.docs) {
+        snapshot.data[`lop/${entry.id}`] = entry.data();
+        for (const subcollection of ["faces", "thoiKhoaBieu"]) {
+          const subdocs = await getDocs(
+            collection(db, "lop", entry.id, subcollection)
+          );
+          subdocs.forEach((subdoc) => {
+            snapshot.data[
+              `lop/${entry.id}/${subcollection}/${subdoc.id}`
+            ] = subdoc.data();
+          });
+        }
+      }
+      const newsSnap = await getDocs(collection(db, "news"));
+      newsSnap.forEach((entry) => {
+        snapshot.data[`news/${entry.id}`] = entry.data();
       });
 
       const blob = new Blob([JSON.stringify(snapshot, null, 2)], {
@@ -382,14 +440,18 @@ export default function App() {
       const { db } = await import("./firebase");
       const { doc, setDoc } = await import("firebase/firestore");
 
-      const diemdanhKeys = ["all", "faces", "thiDua", "thoiKhoaBieu", "ngayNghi"];
-      for (const key of diemdanhKeys) {
+      const documentData = payload.data || {};
+      for (const [path, value] of Object.entries(documentData)) {
+        await setDoc(doc(db, ...path.split("/")), value);
+      }
+
+      const legacyDocs = ["all", "faces", "thiDua", "thoiKhoaBieu", "ngayNghi"];
+      for (const key of legacyDocs) {
         const value = payload[`diemdanh_${key}`];
         if (value !== undefined && value !== null) {
           await setDoc(doc(db, "diemdanh", key), value);
         }
       }
-
       const lopData = payload.lop || {};
       for (const [lopKey, value] of Object.entries(lopData)) {
         await setDoc(doc(db, "lop", lopKey), value);
@@ -407,10 +469,14 @@ export default function App() {
     }
   }
 
-  function handleLogout() {
+  async function handleLogout() {
     if (window.confirm("Đăng xuất?")) {
-      logout();
-      navigate("/");
+      try {
+        await logout();
+        navigate("/");
+      } catch (error) {
+        setMsg(`Không thể đăng xuất: ${error.message}`);
+      }
     }
   }
 
@@ -600,6 +666,19 @@ export default function App() {
               className="caidat-box"
             >
               <h3>⚙️ Cài đặt & Báo cáo</h3>
+              {!isAdmin && (
+                <p role="status">
+                  Quản lý tài khoản chỉ dành cho tài khoản đã được cấp quyền
+                  quản trị (admin).
+                </p>
+              )}
+              {isAdmin && (
+                <ErrorBoundary>
+                  <Suspense fallback={<SkeletonLoading />}>
+                    <TabQuanLyTaiKhoan />
+                  </Suspense>
+                </ErrorBoundary>
+              )}
               <div className="caidat-grid">
                 <button onClick={handleLogout} className="caidat-btn">
                   🚪 Đăng xuất
@@ -774,7 +853,7 @@ export default function App() {
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <TabCameraAI students={students} onMark={handleMark} />
+                  <TabCameraAI students={students} maLop={maLop} onMark={handleMark} />
                 </motion.div>
               )}
               {tabCon === "lichsu" && (
@@ -851,7 +930,7 @@ export default function App() {
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <TabDangKyMat students={students} />
+                  <TabDangKyMat students={students} maLop={maLop} />
                 </motion.div>
               )}
               {tabCon === "quanly" && (
@@ -876,7 +955,7 @@ export default function App() {
                   transition={{ duration: 0.2 }}
                 >
                   <Suspense fallback={<SkeletonLoading />}>
-                    <TabThoiKhoaBieu />
+                    <TabThoiKhoaBieu maLop={maLop} />
                   </Suspense>
                 </motion.div>
               )}
@@ -920,6 +999,19 @@ export default function App() {
             className="caidat-box"
           >
             <h3>⚙️ Cài đặt & Báo cáo</h3>
+            {!isAdmin && (
+              <p role="status">
+                Quản lý tài khoản chỉ dành cho tài khoản đã được cấp quyền
+                quản trị (admin).
+              </p>
+            )}
+            {isAdmin && (
+              <ErrorBoundary>
+                <Suspense fallback={<SkeletonLoading />}>
+                  <TabQuanLyTaiKhoan />
+                </Suspense>
+              </ErrorBoundary>
+            )}
             <div className="caidat-grid">
               <button onClick={handleBackupFirebase} className="caidat-btn">
                 💾 Backup
@@ -1410,8 +1502,7 @@ function TabDiemDanh({
 /* =============================================================
    TAB CAMERA AI
    ============================================================= */
-function TabCameraAI({ students, onMark }) {
-  const { maLop } = useStudents();
+function TabCameraAI({ students, maLop, onMark }) {
   const [running, setRunning] = useState(false);
   const [msg, setMsg] = useState("");
   const [lastLog, setLastLog] = useState([]);
@@ -1423,6 +1514,7 @@ function TabCameraAI({ students, onMark }) {
   const markedInSessionRef = useRef(new Set());
   const faceapiRef = useRef(null);
   const matcherRef = useRef(null);
+  const activeClassRef = useRef(maLop);
   const lastDetectRef = useRef(0);
   const tietTimerRef = useRef(null);
   const videoRef = useRef(null);
@@ -1448,18 +1540,25 @@ function TabCameraAI({ students, onMark }) {
   }, []);
 
   useEffect(() => {
+    let active = true;
     async function loadTKB() {
+      setTkbLop(null);
       if (!maLop) return;
       try {
         const { getTKB } = await import("./tkbStorage");
         const tkb = await getTKB(maLop);
-        console.log("✅ Load TKB lớp", maLop, ":", tkb);
-        setTkbLop(tkb);
+        if (active) {
+          console.log("✅ Load TKB lớp", maLop, ":", tkb);
+          setTkbLop(tkb);
+        }
       } catch (err) {
-        console.error("Lỗi load TKB:", err);
+        if (active) console.error("Lỗi load TKB:", err);
       }
     }
     loadTKB();
+    return () => {
+      active = false;
+    };
   }, [maLop]);
 
   function tietCoHoc(buoi, tiet) {
@@ -1512,7 +1611,7 @@ function TabCameraAI({ students, onMark }) {
     ]);
 
     const { getFaces } = await import("./faceStorage");
-    const faces = await getFaces();
+    const faces = await getFaces(maLop);
     const labeled = Object.keys(faces).map((id) => {
       const descs = faces[id].map((d) => new Float32Array(d));
       return new faceapi.LabeledFaceDescriptors(id, descs);
@@ -1657,6 +1756,19 @@ function TabCameraAI({ students, onMark }) {
   }
 
   useEffect(() => {
+    if (activeClassRef.current === maLop) return;
+    activeClassRef.current = maLop;
+    matcherRef.current = null;
+    if (faceIntervalRef.current) clearInterval(faceIntervalRef.current);
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setRunning(false);
+    setMsg("");
+  }, [maLop]);
+
+  useEffect(() => {
     return () => {
       stop();
     };
@@ -1778,7 +1890,7 @@ function TabCameraAI({ students, onMark }) {
 /* =============================================================
    TAB ĐĂNG KÝ KHUÔN MẶT
    ============================================================= */
-function TabDangKyMat({ students }) {
+function TabDangKyMat({ students, maLop }) {
   const [selectedId, setSelectedId] = useState(students[0]?.id || "");
   const selected = students.some((student) => student.id === selectedId)
     ? selectedId
@@ -1869,7 +1981,7 @@ function TabDangKyMat({ students }) {
 
       setStatus("⏳ Đang lưu...");
       const { saveFace } = await import("./faceStorage");
-      await saveFace(selected, det.descriptor);
+      await saveFace(maLop, selected, det.descriptor);
 
       const hs = students.find((s) => s.id === selected);
       setStatus(`✅ Đã lưu khuôn mặt: ${hs?.name}`);
@@ -1892,7 +2004,7 @@ function TabDangKyMat({ students }) {
     setSaving(true);
     try {
       const { clearFaces } = await import("./faceStorage");
-      await clearFaces(selected);
+      await clearFaces(maLop, selected);
       setStatus(`🗑️ Đã xóa khuôn mặt của ${hs?.name}`);
     } catch (err) {
       setStatus("❌ Lỗi xóa: " + err.message);

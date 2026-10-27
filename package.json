@@ -8,6 +8,9 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "migrate:firebase": "node scripts/migrate-firebase.js",
+    "firebase:grant-teacher": "node scripts/set-teacher-claim.js",
+    "firebase:grant-admin": "node scripts/set-admin-claim.js",
     "deploy": "powershell -File scripts/deploy.ps1"
   },
   "dependencies": {

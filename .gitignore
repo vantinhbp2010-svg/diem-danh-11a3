@@ -30,3 +30,8 @@ dist-ssr
 .dev.vars
 .vercel
 .env*
+
+# Firebase Admin service-account keys
+service-account*.json
+*-service-account*.json
+*firebase-adminsdk*.json

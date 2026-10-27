@@ -1,6 +1,7 @@
 import admin from "firebase-admin";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import process from "node:process";
 
 const file = join(process.cwd(), "backup", "firebase-backup.json");
 const serviceAccountRaw = process.env.FIREBASE_SERVICE_ACCOUNT;
@@ -39,9 +40,9 @@ try {
       continue;
     }
 
-    const [collectionName, docId] = path.split("/");
-    if (!collectionName || !docId) continue;
-    await db.collection(collectionName).doc(docId).set(value || {});
+    const pathSegments = path.split("/");
+    if (pathSegments.length < 2 || pathSegments.length % 2 !== 0) continue;
+    await db.doc(path).set(value || {});
   }
 
   console.log(`✅ Restore Firestore hoàn tất từ ${file}`);

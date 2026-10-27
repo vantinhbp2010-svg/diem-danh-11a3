@@ -1,28 +1,68 @@
-// Đăng nhập giả lập — lưu trong localStorage
-const AUTH_KEY = "auth_11A3";
+import {
+  getIdTokenResult,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+} from "firebase/auth";
+import { auth } from "./firebase";
 
-// Tài khoản mặc định (có thể sửa)
-export const ACCOUNTS = {
-  giaovien: "123456",
-  admin: "admin123",
-};
-
-export function login(username, password) {
-  if (ACCOUNTS[username] && ACCOUNTS[username] === password) {
-    localStorage.setItem(AUTH_KEY, username);
+export async function login(email, password) {
+  try {
+    const credential = await signInWithEmailAndPassword(auth, email, password);
+    const token = await getIdTokenResult(credential.user, true);
+    if (token.claims.teacher !== true && token.claims.admin !== true) {
+      await signOut(auth);
+      return {
+        ok: false,
+        message: "Tài khoản chưa được cấp quyền giáo viên.",
+      };
+    }
     return { ok: true };
+  } catch (error) {
+    if (
+      error.code === "auth/invalid-credential" ||
+      error.code === "auth/user-not-found" ||
+      error.code === "auth/wrong-password"
+    ) {
+      return { ok: false, message: "Email hoặc mật khẩu không chính xác." };
+    }
+    return { ok: false, message: error.message };
   }
-  return { ok: false, message: "Sai tên đăng nhập hoặc mật khẩu!" };
 }
 
 export function logout() {
-  localStorage.removeItem(AUTH_KEY);
+  return signOut(auth);
 }
 
 export function getUser() {
-  return localStorage.getItem(AUTH_KEY);
+  return auth.currentUser?.email || "";
 }
 
-export function isLoggedIn() {
-  return !!localStorage.getItem(AUTH_KEY);
+export function subscribeTeacherState(callback) {
+  let active = true;
+  const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      if (active) callback({ user: null, isTeacher: false, isAdmin: false });
+      return;
+    }
+
+    try {
+      const token = await getIdTokenResult(user, true);
+      if (active) {
+        callback({
+          user,
+          isTeacher:
+            token.claims.teacher === true || token.claims.admin === true,
+          isAdmin: token.claims.admin === true,
+        });
+      }
+    } catch (error) {
+      if (active) callback({ user, isTeacher: false, isAdmin: false, error });
+    }
+  });
+
+  return () => {
+    active = false;
+    unsubscribe();
+  };
 }

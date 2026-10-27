@@ -1,8 +1,94 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isTeacher() {
+      return request.auth != null && request.auth.token.teacher == true;
+    }
+
+    function validDataEnvelope() {
+      return request.resource.data.keys().hasOnly(['data'])
+        && request.resource.data.data is map;
+    }
+
+    function validNews() {
+      return request.resource.data.keys().hasAll([
+          'ten', 'tieuDe', 'noiDung', 'vaiTro', 'daDuyet',
+          'ghim', 'thoiGian', 'anhUrl'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'ten', 'tieuDe', 'noiDung', 'vaiTro', 'daDuyet',
+          'ghim', 'thoiGian', 'anhUrl'
+        ])
+        && request.resource.data.ten is string
+        && request.resource.data.ten.size() > 0
+        && request.resource.data.ten.size() <= 100
+        && request.resource.data.tieuDe is string
+        && request.resource.data.tieuDe.size() > 0
+        && request.resource.data.tieuDe.size() <= 200
+        && request.resource.data.noiDung is string
+        && request.resource.data.noiDung.size() > 0
+        && request.resource.data.noiDung.size() <= 5000
+        && request.resource.data.vaiTro in ['hocsinh', 'giaovien']
+        && request.resource.data.daDuyet is bool
+        && request.resource.data.ghim is bool
+        && request.resource.data.thoiGian is int
+        && (
+          request.resource.data.anhUrl == null
+          || (
+            request.resource.data.anhUrl is string
+            && request.resource.data.anhUrl.size() <= 2048
+          )
+        );
+    }
+
+    function validStudentNews() {
+      return validNews()
+        && request.resource.data.vaiTro == 'hocsinh'
+        && request.resource.data.daDuyet == false
+        && request.resource.data.ghim == false;
+    }
+
+    match /diemdanh/{documentId} {
+      allow read: if isTeacher()
+        || documentId.matches(
+          '^diemdanh_thang_[0-9]{4}-(0[1-9]|1[0-2])$'
+        );
+      allow create, update: if isTeacher() && validDataEnvelope();
+      allow delete: if false;
+    }
+
+    match /lop/{classId} {
+      allow read: if true;
+      allow create, update: if isTeacher();
+      allow delete: if false;
+
+      match /faces/{documentId} {
+        allow read, create, update, delete: if isTeacher();
+      }
+
+      match /thoiKhoaBieu/{documentId} {
+        allow read: if isTeacher();
+        allow create, update: if isTeacher() && validDataEnvelope();
+        allow delete: if isTeacher();
+      }
+    }
+
+    match /news/{newsId} {
+      allow read: if true;
+      allow create: if (
+        isTeacher() && validNews()
+      ) || (
+        request.auth == null && validStudentNews()
+      );
+      allow update: if isTeacher()
+        && validNews()
+        && request.resource.data.diff(resource.data)
+          .affectedKeys().hasOnly(['daDuyet', 'ghim']);
+      allow delete: if isTeacher();
+    }
+
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }

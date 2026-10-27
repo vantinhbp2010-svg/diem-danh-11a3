@@ -1,8 +1,13 @@
 import { db } from "./firebase";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+} from "firebase/firestore";
 import {
   tinhTrangThai,
-  tietDaHet,
   layTietDaKetThuc,
   layNgayHomNay,
   layGioPhutHienTai,
@@ -11,20 +16,109 @@ import {
   TKB_CHIEU,
 } from "./thoiKhoaBieu";
 
+function validateMonth(month) {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+    throw new Error(`Tháng không hợp lệ: ${month}`);
+  }
+}
+
+function monthOfDate(date) {
+  const month = String(date).slice(0, 7);
+  validateMonth(month);
+  return month;
+}
+
+function attendanceRef(month) {
+  validateMonth(month);
+  return doc(db, "diemdanh", `diemdanh_thang_${month}`);
+}
+
 export async function getAttendance() {
-  const ref = doc(db, "diemdanh", "all");
-  const snap = await getDoc(ref);
+  return getAttendanceByMonth(layNgayHomNay().slice(0, 7));
+}
+
+export async function getAttendanceByMonth(month) {
+  const snap = await getDoc(attendanceRef(month));
   return snap.exists() ? snap.data().data || {} : {};
 }
 
-export async function saveAttendance(data) {
-  const ref = doc(db, "diemdanh", "all");
-  await setDoc(ref, { data });
+export async function getAttendanceBetween(startDate, endDate) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(endDate) ||
+      startDate > endDate) {
+    throw new Error("Khoảng ngày điểm danh không hợp lệ");
+  }
+
+  const startMonth = monthOfDate(startDate);
+  const endMonth = monthOfDate(endDate);
+  const months = [];
+  let [year, month] = startMonth.split("-").map(Number);
+  const [endYear, endMonthNumber] = endMonth.split("-").map(Number);
+
+  while (year < endYear || (year === endYear && month <= endMonthNumber)) {
+    months.push(`${year}-${String(month).padStart(2, "0")}`);
+    month++;
+    if (month === 13) {
+      year++;
+      month = 1;
+    }
+  }
+
+  const monthData = await Promise.all(months.map(getAttendanceByMonth));
+  const attendance = Object.assign({}, ...monthData);
+  return Object.entries(attendance).reduce((result, [date, data]) => {
+    if (date >= startDate && date <= endDate) result[date] = data;
+    return result;
+  }, {});
+}
+
+export async function saveAttendance(data, month = layNgayHomNay().slice(0, 7)) {
+  await setDoc(attendanceRef(month), { data });
+}
+
+export async function removeStudentsFromAttendance(studentIds) {
+  const studentIdSet = new Set(studentIds);
+  const snapshots = await getDocs(collection(db, "diemdanh"));
+
+  for (const snapshot of snapshots.docs) {
+    const match = snapshot.id.match(/^diemdanh_thang_(\d{4}-\d{2})$/);
+    if (!match) continue;
+
+    const data = snapshot.data().data || {};
+    let changed = false;
+    for (const day of Object.values(data)) {
+      for (const studentId of studentIdSet) {
+        if (Object.hasOwn(day, studentId)) {
+          delete day[studentId];
+          changed = true;
+        }
+      }
+    }
+
+    if (changed) await saveAttendance(data, match[1]);
+  }
+}
+
+export async function clearAllAttendance() {
+  const snapshots = await getDocs(collection(db, "diemdanh"));
+  const monthlyDocs = snapshots.docs.filter(
+    (snapshot) =>
+      /^diemdanh_thang_\d{4}-(0[1-9]|1[0-2])$/.test(snapshot.id)
+  );
+  await Promise.all(
+    monthlyDocs.map((snapshot) =>
+      setDoc(attendanceRef(snapshot.id.slice("diemdanh_thang_".length)), {
+        data: {},
+      })
+    )
+  );
+  await setDoc(doc(db, "diemdanh", "all"), { data: {} });
 }
 
 export async function markAttendance(studentId, buoi, tiet) {
   const today = layNgayHomNay();
-  const data = await getAttendance();
+  const month = monthOfDate(today);
+  const data = await getAttendanceByMonth(month);
 
   if (!data[today]) data[today] = {};
   if (!data[today][studentId]) data[today][studentId] = {};
@@ -51,7 +145,7 @@ export async function markAttendance(studentId, buoi, tiet) {
     diemTru: kq.diemTru,
   };
 
-  await saveAttendance(data);
+  await saveAttendance(data, month);
 
   return {
     ok: true,
@@ -64,7 +158,8 @@ export async function markAttendance(studentId, buoi, tiet) {
 
 export async function xoaDiemDanh(studentId, buoi, tiet) {
   const today = layNgayHomNay();
-  const data = await getAttendance();
+  const month = monthOfDate(today);
+  const data = await getAttendanceByMonth(month);
 
   if (!data[today] || !data[today][studentId] || !data[today][studentId][buoi]) {
     return;
@@ -81,28 +176,26 @@ export async function xoaDiemDanh(studentId, buoi, tiet) {
     delete data[today][studentId];
   }
 
-  await saveAttendance(data);
+  await saveAttendance(data, month);
 }
 
-export async function xoaTatCaCuaHocSinh(studentId) {
+export async function xoaTatCaCuaHocSinh(studentId, maLop) {
+  if (!maLop) throw new Error("Thiếu mã lớp");
   const today = layNgayHomNay();
-  const data = await getAttendance();
+  const month = monthOfDate(today);
+  const data = await getAttendanceByMonth(month);
 
   if (data[today] && data[today][studentId]) {
     delete data[today][studentId];
   }
-  await saveAttendance(data);
+  await saveAttendance(data, month);
 
-  try {
-    const { clearFaces } = await import("./faceStorage");
-    await clearFaces(studentId);
-  } catch (e) {
-    console.warn("Lỗi xóa mặt:", e);
-  }
+  const { clearFaces } = await import("./faceStorage");
+  await clearFaces(maLop, studentId);
 }
 
 export async function getAttendanceByDate(date) {
-  const all = await getAttendance();
+  const all = await getAttendanceByMonth(monthOfDate(date));
   return all[date] || {};
 }
 
@@ -112,7 +205,8 @@ export async function getDanhSachNgay() {
 }
 
 export async function updateAttendance(studentId, date, buoi, tiet, trangThai, gioVao) {
-  const data = await getAttendance();
+  const month = monthOfDate(date);
+  const data = await getAttendanceByMonth(month);
   if (!data[date]) data[date] = {};
   if (!data[date][studentId]) data[date][studentId] = {};
   if (!data[date][studentId][buoi]) data[date][studentId][buoi] = {};
@@ -144,11 +238,12 @@ export async function updateAttendance(studentId, date, buoi, tiet, trangThai, g
     diemTru,
   };
 
-  await saveAttendance(data);
+  await saveAttendance(data, month);
 }
 
 export async function xacNhanKhongVang(studentId, date, buoi, tiet) {
-  const data = await getAttendance();
+  const month = monthOfDate(date);
+  const data = await getAttendanceByMonth(month);
   if (!data[date]) data[date] = {};
   if (!data[date][studentId]) data[date][studentId] = {};
   if (!data[date][studentId][buoi]) data[date][studentId][buoi] = {};
@@ -168,12 +263,13 @@ export async function xacNhanKhongVang(studentId, date, buoi, tiet) {
     ghiChu: "GV xác nhận vắng có phép",
   };
 
-  await saveAttendance(data);
+  await saveAttendance(data, month);
   return { ok: true };
 }
 
 export async function xoaDiemDanhTheoNgay(studentId, date, buoi, tiet) {
-  const data = await getAttendance();
+  const month = monthOfDate(date);
+  const data = await getAttendanceByMonth(month);
   if (!data[date] || !data[date][studentId]) return;
 
   if (buoi && tiet) {
@@ -195,7 +291,7 @@ export async function xoaDiemDanhTheoNgay(studentId, date, buoi, tiet) {
     delete data[date][studentId];
   }
 
-  await saveAttendance(data);
+  await saveAttendance(data, month);
 }
 
 export async function tuDongChuyenVang() {
@@ -207,11 +303,19 @@ export async function tuDongChuyenVang() {
   let coThayDoi = false;
 
   let tkbLop = null;
+  let students = [];
   try {
     const maLop = localStorage.getItem("lop_dang_chon");
     if (maLop) {
-      const { getTKB } = await import("./tkbStorage");
-      tkbLop = await getTKB(maLop);
+      const [{ getTKB }, { getDSLop }] = await Promise.all([
+        import("./tkbStorage"),
+        import("./lopStorage"),
+      ]);
+      [tkbLop, students] = await Promise.all([
+        getTKB(maLop),
+        getDSLop(maLop),
+      ]);
+      students = students || [];
     }
   } catch (e) {
     console.warn("Không load được TKB:", e);
@@ -277,7 +381,7 @@ export async function tuDongChuyenVang() {
 }
 
 export async function tinhThongKeThang(thang, students) {
-  const all = await getAttendance();
+  const all = await getAttendanceByMonth(thang);
   const dsNgay = Object.keys(all).filter((ngay) => ngay.startsWith(thang));
 
   const thongKe = {};

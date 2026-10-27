@@ -53,5 +53,12 @@ export default defineConfig({
   },
   server: {
     host: true,
+    watch: {
+      ignored: [
+        "**/service-account*.json",
+        "**/*-service-account*.json",
+        "**/*firebase-adminsdk*.json",
+      ],
+    },
   },
 });

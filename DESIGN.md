@@ -152,16 +152,7 @@ Scale: 4, 8, 12, 16, 20, 24, 32, 40, 48, 64
 
 ### Firebase rules
 
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if true;
-    }
-  }
-}
-```
+Firestore access is defined in [`firestore.rules`](./firestore.rules). Deploy those rules only after enabling Firebase Authentication and granting the teacher account the `teacher: true` custom claim; setup steps are in [`README.md`](./README.md).
 
 ### Cloudflare Pages configuration
 

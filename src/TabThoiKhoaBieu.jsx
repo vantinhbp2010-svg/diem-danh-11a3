@@ -1,23 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useStudents } from "./StudentsContext";
 import { getTKB, saveTKB, xoaTKB } from "./tkbStorage";
 import { GIO_SANG, GIO_CHIEU, TEN_THU, tkbDayDu } from "./thoiKhoaBieu";
 import "./App.css";
 
-export default function TabThoiKhoaBieu() {
-  const { maLop, students } = useStudents();
+export default function TabThoiKhoaBieu({ maLop }) {
+  const { students } = useStudents();
   const [tkb, setTkb] = useState(null);
   const [thuDangChon, setThuDangChon] = useState("thu2");
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState("");
   const [dangLuu, setDangLuu] = useState(false);
 
-  useEffect(() => {
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [maLop]);
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       if (!maLop) {
@@ -32,7 +27,12 @@ export default function TabThoiKhoaBieu() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [maLop]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Load data asynchronously from Firestore.
+    loadData();
+  }, [loadData]);
 
   function toggleTiet(buoi, index) {
     if (!tkb) return;

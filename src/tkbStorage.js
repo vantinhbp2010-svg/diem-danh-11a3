@@ -1,7 +1,17 @@
 import { db } from "./firebase";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+} from "firebase/firestore";
 
-const DOC_TKB = doc(db, "diemdanh", "thoiKhoaBieu");
+function tkbRef(maLop) {
+  if (!maLop || maLop.includes("/")) throw new Error("Mã lớp không hợp lệ");
+  return doc(db, "lop", maLop, "thoiKhoaBieu", "data");
+}
 
 /**
  * Chuyển mảng boolean thành object để Firestore lưu được
@@ -60,25 +70,22 @@ function chuanBiDoc(tkb) {
  */
 export async function getTKB(maLop) {
   if (!maLop) return null;
-  const snap = await getDoc(DOC_TKB);
+  const snap = await getDoc(tkbRef(maLop));
   if (!snap.exists()) return null;
-  const all = snap.data().data || {};
-  const tkbCuaLop = all[maLop];
-  if (!tkbCuaLop) return null;
-  return chuanBiDoc(tkbCuaLop);
+  const tkb = snap.data().data;
+  return tkb ? chuanBiDoc(tkb) : null;
 }
 
 /**
  * Lấy TKB tất cả các lớp
  */
 export async function getTKBAll() {
-  const snap = await getDoc(DOC_TKB);
-  if (!snap.exists()) return {};
-  const all = snap.data().data || {};
   const ketQua = {};
-  Object.keys(all).forEach((maLop) => {
-    ketQua[maLop] = chuanBiDoc(all[maLop]);
-  });
+  const snap = await getDocs(collection(db, "lop"));
+  await Promise.all(snap.docs.map(async (classDoc) => {
+    const tkb = await getTKB(classDoc.id);
+    if (tkb) ketQua[classDoc.id] = tkb;
+  }));
   return ketQua;
 }
 
@@ -86,22 +93,12 @@ export async function getTKBAll() {
  * Lưu TKB cho 1 lớp
  */
 export async function saveTKB(maLop, tkb) {
-  if (!maLop) throw new Error("Thiếu mã lớp");
-
-  const snap = await getDoc(DOC_TKB);
-  const all = snap.exists() ? snap.data().data || {} : {};
-
-  all[maLop] = chuanBiLuu(tkb);
-
-  await setDoc(DOC_TKB, { data: all });
+  await setDoc(tkbRef(maLop), { data: chuanBiLuu(tkb) });
 }
 
 /**
  * Xóa TKB của 1 lớp
  */
 export async function xoaTKB(maLop) {
-  const snap = await getDoc(DOC_TKB);
-  const all = snap.exists() ? snap.data().data || {} : {};
-  delete all[maLop];
-  await setDoc(DOC_TKB, { data: all });
+  await deleteDoc(tkbRef(maLop));
 }

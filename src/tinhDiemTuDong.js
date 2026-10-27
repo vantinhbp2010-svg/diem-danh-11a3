@@ -5,9 +5,10 @@
 //  - Đi trễ: -3đ/tiết
 // TÍNH THEO TUẦN ĐANG XEM (không giới hạn tháng, tránh bug tuần bắc qua tháng)
 
-import { getAttendance } from "./storage";
+import { getAttendanceBetween } from "./storage";
 import { getNgayNghi, laNgayNghi } from "./ngayNghiStorage";
 import { layKhoangNgayTuanHoc } from "./diemThiDua";
+import { layNgayHomNay } from "./thoiKhoaBieu";
 
 export async function tinhDiemTruTuDong(tuanCode, students, maLop) {
   const { start, end } = layKhoangNgayTuanHoc(tuanCode);
@@ -20,7 +21,10 @@ export async function tinhDiemTruTuDong(tuanCode, students, maLop) {
     return { diemTru: 0, chiTiet: empty };
   }
 
-  const all = await getAttendance();
+  const all = await getAttendanceBetween(
+    layNgayHomNay(start),
+    layNgayHomNay(end)
+  );
   const ngayNghi = maLop ? await getNgayNghi(maLop) : {};
 
   // ⭐ CHỈ LỌC THEO start/end, KHÔNG LỌC THÁNG
