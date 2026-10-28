@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
 
 /* =============================================================
    TAB ĐĂNG KÝ KHUÔN MẶT
@@ -161,22 +162,24 @@ function TabDangKyMat({ students, maLop }) {
           ))}
         </select>
 
-        <button
+        <motion.button
           onClick={() => {
             if (idx > 0) setSelectedId(students[idx - 1].id);
           }}
+          whileTap={{ scale: 0.95 }}
           style={{ background: "#94a3b8" }}
         >
           ⬅ Trước
-        </button>
-        <button
+        </motion.button>
+        <motion.button
           onClick={() => {
             if (idx < students.length - 1) setSelectedId(students[idx + 1].id);
           }}
+          whileTap={{ scale: 0.95 }}
           style={{ background: "#94a3b8" }}
         >
           Sau ➡
-        </button>
+        </motion.button>
       </div>
 
       <div>
@@ -194,8 +197,9 @@ function TabDangKyMat({ students, maLop }) {
         />
       </div>
 
-      <button
+      <motion.button
         onClick={capture}
+        whileTap={{ scale: 0.95 }}
         disabled={!loaded || saving}
         style={{
           fontSize: 18,
@@ -204,14 +208,15 @@ function TabDangKyMat({ students, maLop }) {
         }}
       >
         {saving ? "⏳ Đang xử lý..." : `📸 Chụp khuôn mặt cho ${hs?.name}`}
-      </button>
-      <button
+      </motion.button>
+      <motion.button
         onClick={xoaMat}
+        whileTap={{ scale: 0.95 }}
         disabled={!loaded || saving}
         style={{ background: "#e74c3c", marginLeft: 10, padding: "12px 20px" }}
       >
         🗑️ Xóa khuôn mặt
-      </button>
+      </motion.button>
 
       {status && <div className="msg">{status}</div>}
     </>

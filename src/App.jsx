@@ -825,10 +825,10 @@ export default function App() {
               {tabCon === "homnay" && (
                 <motion.div
                   key="homnay"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.2 }}
+                  initial={{ opacity: 0, y: 20, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -20, scale: 0.98 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 >
                   <Suspense fallback={<SkeletonLoading />}>
                     <TabDiemDanh
@@ -848,10 +848,10 @@ export default function App() {
               {tabCon === "camera" && (
                 <motion.div
                   key="camera"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.2 }}
+                  initial={{ opacity: 0, y: 20, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -20, scale: 0.98 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 >
                   <Suspense fallback={<SkeletonLoading />}>
                     <TabCameraAI
@@ -865,10 +865,10 @@ export default function App() {
               {tabCon === "lichsu" && (
                 <motion.div
                   key="lichsu"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.2 }}
+                  initial={{ opacity: 0, y: 20, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -20, scale: 0.98 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 >
                   <Suspense fallback={<SkeletonLoading />}>
                     <TabLichSu
@@ -885,10 +885,10 @@ export default function App() {
               {tabCon === "thongke" && (
                 <motion.div
                   key="thongke"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.2 }}
+                  initial={{ opacity: 0, y: 20, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -20, scale: 0.98 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 >
                   <Suspense fallback={<SkeletonLoading />}>
                     <TabThongKe
@@ -935,10 +935,10 @@ export default function App() {
               {tabCon === "dangky" && (
                 <motion.div
                   key="dangky"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.2 }}
+                  initial={{ opacity: 0, y: 20, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -20, scale: 0.98 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 >
                   <Suspense fallback={<SkeletonLoading />}>
                     <TabDangKyMat students={students} maLop={maLop} />
@@ -948,10 +948,10 @@ export default function App() {
               {tabCon === "quanly" && (
                 <motion.div
                   key="quanly"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.2 }}
+                  initial={{ opacity: 0, y: 20, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -20, scale: 0.98 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 >
                   <Suspense fallback={<SkeletonLoading />}>
                     <QuanLyLop />
@@ -961,10 +961,10 @@ export default function App() {
               {tabCon === "tkb" && (
                 <motion.div
                   key="tkb"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.2 }}
+                  initial={{ opacity: 0, y: 20, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -20, scale: 0.98 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 >
                   <Suspense fallback={<SkeletonLoading />}>
                     <TabThoiKhoaBieu maLop={maLop} />

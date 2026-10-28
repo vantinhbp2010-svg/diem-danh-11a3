@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import { layThuHienTai } from "../thoiKhoaBieu";
 
 /* =============================================================
@@ -354,15 +355,17 @@ function TabCameraAI({ students, maLop, onMark }) {
       </div>
 
       {!running ? (
-        <button
+        <motion.button
           onClick={start}
+          whileTap={{ scale: 0.95 }}
           style={{ fontSize: 18, padding: "12px 24px" }}
         >
           ▶ Bật camera
-        </button>
+        </motion.button>
       ) : (
-        <button
+        <motion.button
           onClick={stop}
+          whileTap={{ scale: 0.95 }}
           style={{
             background: "#e74c3c",
             fontSize: 18,
@@ -370,7 +373,7 @@ function TabCameraAI({ students, maLop, onMark }) {
           }}
         >
           ⏹ Tắt camera
-        </button>
+        </motion.button>
       )}
 
       {msg && <div className="msg">{msg}</div>}

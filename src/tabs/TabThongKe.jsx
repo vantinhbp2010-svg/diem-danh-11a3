@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import { layNgayHomNay } from "../thoiKhoaBieu";
 import AnimatedNumber from "./AnimatedNumber";
 
@@ -99,9 +100,13 @@ function TabThongKe({ thangThongKe, duLieuThongKe, onDoiThang }) {
             max={layNgayHomNay().slice(0, 7)}
           />
         </div>
-        <button onClick={xuatExcel} style={{ background: "#10b981" }}>
+        <motion.button
+          onClick={xuatExcel}
+          whileTap={{ scale: 0.95 }}
+          style={{ background: "#10b981" }}
+        >
           📥 Xuất Excel tháng
-        </button>
+        </motion.button>
       </div>
 
       <h3 style={{ textAlign: "center", color: "#1e3a8a" }}>
@@ -200,17 +205,19 @@ function TabThongKe({ thangThongKe, duLieuThongKe, onDoiThang }) {
                 <td>{e.id}</td>
                 <td>{e.name}</td>
                 <td style={{ textAlign: "center", color: "#10b981" }}>
-                  <b>{e.dungGio}</b>
+                  <b><AnimatedNumber value={e.dungGio} /></b>
                 </td>
                 <td style={{ textAlign: "center", color: "#f59e0b" }}>
-                  <b>{e.diTre}</b>
+                  <b><AnimatedNumber value={e.diTre} /></b>
                 </td>
                 <td style={{ textAlign: "center", color: "#dc2626" }}>
-                  <b>{e.vang}</b>
+                  <b><AnimatedNumber value={e.vang} /></b>
                 </td>
-                <td style={{ textAlign: "center" }}>{e.tongBuoi}</td>
                 <td style={{ textAlign: "center" }}>
-                  <b>{tl}%</b>
+                  <AnimatedNumber value={e.tongBuoi} />
+                </td>
+                <td style={{ textAlign: "center" }}>
+                  <b><AnimatedNumber value={tl} />%</b>
                 </td>
               </tr>
             );

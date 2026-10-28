@@ -293,7 +293,7 @@ function TabDiemDanh({
                 className={cls}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: Math.min(i * 0.01, 0.15), duration: 0.22 }}
+                transition={{ delay: Math.min(i * 0.03, 0.3), duration: 0.3 }}
                 whileHover={{ scale: 1.01, backgroundColor: "#f8fafc" }}
                 style={{ transformOrigin: "left center" }}
               >
@@ -339,8 +339,9 @@ function TabDiemDanh({
                     </motion.button>
                   )}
                   {a && (
-                    <button
+                    <motion.button
                       onClick={() => onXoa(s.id, buoiHienTai, tiet)}
+                      whileTap={{ scale: 0.95 }}
                       style={{
                         background: "#f59e0b",
                         marginLeft: 4,
@@ -349,10 +350,11 @@ function TabDiemDanh({
                       }}
                     >
                       🗑️
-                    </button>
+                    </motion.button>
                   )}
-                  <button
+                  <motion.button
                     onClick={() => moSuaModal(s.id)}
+                    whileTap={{ scale: 0.95 }}
                     style={{
                       background: "#3b82f6",
                       marginLeft: 4,
@@ -361,9 +363,10 @@ function TabDiemDanh({
                     }}
                   >
                     ✏️ Sửa
-                  </button>
-                  <button
+                  </motion.button>
+                  <motion.button
                     onClick={() => onXoaTatCa(s.id)}
+                    whileTap={{ scale: 0.95 }}
                     style={{
                       background: "#dc2626",
                       marginLeft: 4,
@@ -372,7 +375,7 @@ function TabDiemDanh({
                     }}
                   >
                     ❌
-                  </button>
+                  </motion.button>
                 </td>
               </motion.tr>
             );
@@ -395,8 +398,8 @@ function TabDiemDanh({
                 onClick={(e) => e.stopPropagation()}
                 initial={{ scale: 0.9, opacity: 0, y: 20 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
               >
                 <h3>✏️ Sửa điểm danh</h3>
                 <p>
@@ -427,15 +430,20 @@ function TabDiemDanh({
                 </div>
 
                 <div className="modal-buttons">
-                  <button
+                  <motion.button
                     onClick={() => setSuaModal(null)}
+                    whileTap={{ scale: 0.95 }}
                     style={{ background: "#94a3b8" }}
                   >
                     ❌ Hủy
-                  </button>
-                  <button onClick={luuSua} style={{ background: "#10b981" }}>
+                  </motion.button>
+                  <motion.button
+                    onClick={luuSua}
+                    whileTap={{ scale: 0.95 }}
+                    style={{ background: "#10b981" }}
+                  >
                     ✅ Lưu
-                  </button>
+                  </motion.button>
                 </div>
               </motion.div>
             </motion.div>

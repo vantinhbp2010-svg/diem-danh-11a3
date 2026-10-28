@@ -60,24 +60,26 @@ function TabLichSu({
     <>
       <div className="chon-buoi" style={{ marginBottom: 15 }}>
         <span>Buổi:</span>
-        <button
+        <motion.button
           className={buoi === "sang" ? "active" : ""}
           onClick={() => {
             setBuoi("sang");
             setTietXem(1);
           }}
+          whileTap={{ scale: 0.95 }}
         >
           🌅 Sáng
-        </button>
-        <button
+        </motion.button>
+        <motion.button
           className={buoi === "chieu" ? "active" : ""}
           onClick={() => {
             setBuoi("chieu");
             setTietXem(2);
           }}
+          whileTap={{ scale: 0.95 }}
         >
           🌆 Chiều
-        </button>
+        </motion.button>
 
         <span style={{ marginLeft: 15 }}>Tiết:</span>
         <select
@@ -105,20 +107,22 @@ function TabLichSu({
         </div>
 
         <div className="lichsu-quick">
-          <button
+          <motion.button
             onClick={() => onDoiNgay(layNgayHomNay())}
+            whileTap={{ scale: 0.95 }}
           >
             Hôm nay
-          </button>
-          <button
+          </motion.button>
+          <motion.button
             onClick={() => {
               const d = new Date();
               d.setDate(d.getDate() - 1);
               onDoiNgay(layNgayHomNay(d));
             }}
+            whileTap={{ scale: 0.95 }}
           >
             Hôm qua
-          </button>
+          </motion.button>
         </div>
       </div>
 
@@ -170,8 +174,9 @@ function TabLichSu({
                 <td>{status}</td>
                 <td>{a ? a.gioVao : "—"}</td>
                 <td>
-                  <button
+                  <motion.button
                     onClick={() => moSuaModal(s.id)}
+                    whileTap={{ scale: 0.95 }}
                     style={{
                       background: "#3b82f6",
                       padding: "5px 10px",
@@ -179,10 +184,11 @@ function TabLichSu({
                     }}
                   >
                     ✏️ Sửa
-                  </button>
+                  </motion.button>
                   {a && (
-                    <button
+                    <motion.button
                       onClick={() => onXoa(s.id, buoi)}
+                      whileTap={{ scale: 0.95 }}
                       style={{
                         background: "#e74c3c",
                         marginLeft: 4,
@@ -191,7 +197,7 @@ function TabLichSu({
                       }}
                     >
                       🗑️
-                    </button>
+                    </motion.button>
                   )}
                 </td>
               </tr>
@@ -215,8 +221,8 @@ function TabLichSu({
                 onClick={(e) => e.stopPropagation()}
                 initial={{ scale: 0.9, opacity: 0, y: 20 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
               >
                 <h3>✏️ Sửa điểm danh</h3>
                 <p>
@@ -247,15 +253,20 @@ function TabLichSu({
                 </div>
 
                 <div className="modal-buttons">
-                  <button
+                  <motion.button
                     onClick={() => setSuaModal(null)}
+                    whileTap={{ scale: 0.95 }}
                     style={{ background: "#94a3b8" }}
                   >
                     ❌ Hủy
-                  </button>
-                  <button onClick={luuSua} style={{ background: "#10b981" }}>
+                  </motion.button>
+                  <motion.button
+                    onClick={luuSua}
+                    whileTap={{ scale: 0.95 }}
+                    style={{ background: "#10b981" }}
+                  >
                     ✅ Lưu
-                  </button>
+                  </motion.button>
                 </div>
               </motion.div>
             </motion.div>
