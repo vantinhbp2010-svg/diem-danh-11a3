@@ -14,7 +14,6 @@
     "deploy": "powershell -File scripts/deploy.ps1"
   },
   "dependencies": {
-    "@google/genai": "^2.27.0",
     "chart.js": "^4.5.1",
     "face-api.js": "^0.22.2",
     "firebase": "^12.19.0",

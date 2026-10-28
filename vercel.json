@@ -2,8 +2,17 @@
   "functions": {
     "api/chat.js": {
       "maxDuration": 60
+    },
+    "api/cron-backup.js": {
+      "maxDuration": 60
     }
   },
+  "crons": [
+    {
+      "path": "/api/cron-backup",
+      "schedule": "0 16 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/assets/(.*)",

@@ -55,6 +55,21 @@ Script giữ nguyên dữ liệu cũ, không ghi đè tài liệu đích đã t�
 
 Claim `teacher: true` chỉ cấp qua Admin SDK; không cấp quyền từ dữ liệu client hoặc mã lớp. Rules cho phép khách đọc danh sách lớp/điểm danh tháng và đọc/tạo tin chờ duyệt để giữ trang học sinh hoạt động; dữ liệu khuôn mặt và TKB chỉ giáo viên đọc/ghi. Nếu điểm danh/lớp không nên công khai, cần đổi luồng truy cập khách trước khi mở Rules.
 
+### Sao lưu Firestore tự động trên Vercel
+
+Vercel Cron gọi `GET /api/cron-backup` hàng ngày lúc **23:00 giờ Việt Nam (16:00 UTC)**. Endpoint yêu cầu `Authorization: Bearer <CRON_SECRET>` do Vercel Cron gửi và lưu JSON snapshot vào một Google Cloud Storage bucket riêng tư trong cùng project.
+
+1. Tạo bucket backup trong Google Cloud/Firebase project và giữ quyền truy cập công khai tắt.
+2. Cấp service account đang dùng bởi `FIREBASE_SERVICE_ACCOUNT` quyền **Storage Object Creator** chỉ trên bucket backup. Giữ quyền Firestore cần thiết cho Admin SDK.
+3. Trong Vercel → Project Settings → Environment Variables, cấu hình:
+   - `CRON_SECRET`: chuỗi ngẫu nhiên tối thiểu 32 ký tự; chỉ dùng ở Production.
+   - `FIREBASE_BACKUP_BUCKET`: tên bucket, không gồm `gs://`.
+   - `FIREBASE_SERVICE_ACCOUNT` và `FIREBASE_PROJECT_ID` hiện có.
+4. Deploy Production. Cron của Vercel chạy trên Production deployment; kiểm tra **Vercel → Logs/Functions → `/api/cron-backup`** và xác nhận phản hồi có `ok: true`.
+5. Kiểm tra bucket có object mới dưới `firestore-backups/`. Thiết lập lifecycle/retention của bucket theo chính sách lưu trữ trường học và kiểm tra định kỳ khả năng khôi phục.
+
+Backup chứa dữ liệu học sinh và khuôn mặt; bucket không được công khai. Không ghi service account JSON, `CRON_SECRET` hoặc URL/token truy cập bucket vào Git. Khóa service account từng bị lộ cần được thu hồi và thay mới trước khi triển khai.
+
 Firestore Rules không đo chính xác số byte đã serialize của document bằng `data.size()`; giới hạn 1 MiB được Firestore áp dụng ở tầng dịch vụ. Chia theo tháng giúp tránh document tăng mãi nhưng vẫn cần theo dõi nếu một tháng/lớp có dữ liệu bất thường lớn.
 
 ## Quản lý tài khoản giáo viên (Vercel)
@@ -89,6 +104,8 @@ Chatbot gọi Groq API qua endpoint máy chủ `/api/chat`. Không đặt API ke
 - **Chạy Cloudflare Function local:** tạo `.dev.vars` ở thư mục gốc với `GROQ_API_KEY=...`, chạy `npm run build`, sau đó `npx wrangler pages dev dist`. Không dùng `npm run dev` để kiểm tra endpoint serverless.
 
 Tạo API key tại [Groq Console](https://console.groq.com/keys). Giới hạn tốc độ và mức sử dụng tùy model/tài khoản; chuyển nhà cung cấp không đảm bảo bỏ hoàn toàn rate limit.
+
+Mã nguồn không dùng Gemini SDK hoặc `GEMINI_API_KEY`; SDK không dùng đã được gỡ khỏi dependencies. Nếu biến `GEMINI_API_KEY` còn trong Vercel, xóa nó thủ công tại **Project Settings → Environment Variables** cho mọi môi trường, rồi redeploy nếu cần.
 
 ## Cấu trúc quan trọng
 - `src/App.jsx` — giao diện chính và các tab.
