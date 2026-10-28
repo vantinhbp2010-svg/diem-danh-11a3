@@ -4,6 +4,7 @@ import {
   useCallback,
   useState,
   useEffect,
+  useRef,
   Component,
 } from "react";
 import {
@@ -139,6 +140,7 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [attendance, setAttendance] = useState({});
   const [today, setToday] = useState(() => layNgayHomNay());
+  const markingAttendance = useRef(new Set());
 
   const [ngayXem, setNgayXem] = useState("");
   const [attendanceNgay, setAttendanceNgay] = useState({});
@@ -234,21 +236,34 @@ export default function App() {
 
   // ============ ĐIỂM DANH ============
   const handleMark = useCallback(async (id, buoi, tiet) => {
+    const date = layNgayHomNay();
+    const keyTiet = `tiet${tiet}`;
+    const requestKey = `${date}:${id}:${buoi}:${tiet}`;
+    const previousRecord = attendance[id]?.[buoi]?.[keyTiet];
+
+    if (previousRecord || markingAttendance.current.has(requestKey)) {
+      return {
+        ok: false,
+        message: `Học sinh này đã điểm danh tiết ${tiet} rồi!`,
+      };
+    }
+
+    markingAttendance.current.add(requestKey);
+    let optimisticRecord = null;
+
     try {
       if (!navigator.onLine) {
-        const keyTiet = `tiet${tiet}`;
         const alreadyQueued = readOfflineQueue().some((item) =>
           item.action === "markAttendance" &&
           item.payload?.studentId === id &&
-          item.payload?.date === layNgayHomNay() &&
+          item.payload?.date === date &&
           item.payload?.buoi === buoi &&
           item.payload?.tiet === tiet
         );
-        if (attendance[id]?.[buoi]?.[keyTiet] || alreadyQueued) {
+        if (alreadyQueued) {
           return { ok: false, message: `Học sinh này đã điểm danh tiết ${tiet} rồi!` };
         }
 
-        const date = layNgayHomNay();
         const gioVao = layGioPhutHienTai();
         const result = tinhTrangThai(buoi, tiet, gioVao);
         const record = {
@@ -266,6 +281,7 @@ export default function App() {
         })) {
           throw new Error("Không thể lưu điểm danh vào hàng đợi trên thiết bị");
         }
+        optimisticRecord = record;
         setAttendance((current) => ({
           ...current,
           [id]: {
@@ -281,7 +297,25 @@ export default function App() {
         return { ok: true, ...record, offline: true };
       }
 
-      const res = await markAttendance(id, buoi, tiet);
+      const gioVao = layGioPhutHienTai();
+      const result = tinhTrangThai(buoi, tiet, gioVao);
+      const record = {
+        trangThai: result.trangThai,
+        gioVao,
+        phutTre: result.phutTre,
+        diemTru: result.diemTru,
+      };
+
+      optimisticRecord = record;
+      setAttendance((current) => ({
+        ...current,
+        [id]: {
+          ...current[id],
+          [buoi]: { ...current[id]?.[buoi], [keyTiet]: record },
+        },
+      }));
+
+      const res = await markAttendance(id, buoi, tiet, record, date);
       if (res.ok) {
         showToast({
           message: `Đã điểm danh tiết ${tiet} buổi ${
@@ -295,13 +329,32 @@ export default function App() {
       } else {
         showToast({ message: res.message, type: "warning" });
       }
-      await refresh();
       return res;
     } catch (err) {
+      setAttendance((current) => {
+        if (!optimisticRecord ||
+            current[id]?.[buoi]?.[keyTiet] !== optimisticRecord) return current;
+
+        const studentAttendance = { ...current[id] };
+        const sessionAttendance = { ...studentAttendance[buoi] };
+        if (previousRecord) {
+          sessionAttendance[keyTiet] = previousRecord;
+        } else {
+          delete sessionAttendance[keyTiet];
+        }
+        if (Object.keys(sessionAttendance).length > 0) {
+          studentAttendance[buoi] = sessionAttendance;
+        } else {
+          delete studentAttendance[buoi];
+        }
+        return { ...current, [id]: studentAttendance };
+      });
       showToast({ type: "error", message: "Lỗi: " + err.message });
       return { ok: false, message: err.message };
+    } finally {
+      markingAttendance.current.delete(requestKey);
     }
-  }, [attendance, refresh, showToast]);
+  }, [attendance, showToast]);
 
   const handleXoa = useCallback(async (id, buoi, tiet) => {
     const hs = students.find((s) => s.id === id);

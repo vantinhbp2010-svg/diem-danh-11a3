@@ -115,44 +115,43 @@ export async function clearAllAttendance() {
   await setDoc(doc(db, "diemdanh", "all"), { data: {} });
 }
 
-export async function markAttendance(studentId, buoi, tiet) {
-  const today = layNgayHomNay();
-  const month = monthOfDate(today);
-  const data = await getAttendanceByMonth(month);
-
-  if (!data[today]) data[today] = {};
-  if (!data[today][studentId]) data[today][studentId] = {};
-  if (!data[today][studentId][buoi]) data[today][studentId][buoi] = {};
-
+export async function markAttendance(
+  studentId,
+  buoi,
+  tiet,
+  attendanceRecord,
+  date = layNgayHomNay()
+) {
+  const month = monthOfDate(date);
   const keyTiet = `tiet${tiet}`;
-
-  if (data[today][studentId][buoi][keyTiet]) {
-    return {
-      ok: false,
-      message: `Học sinh này đã điểm danh tiết ${tiet} buổi ${
-        buoi === "sang" ? "sáng" : "chiều"
-      } rồi!`,
-    };
-  }
-
-  const gioQuet = layGioPhutHienTai();
+  const gioQuet = attendanceRecord?.gioVao || layGioPhutHienTai();
   const kq = tinhTrangThai(buoi, tiet, gioQuet);
-
-  data[today][studentId][buoi][keyTiet] = {
+  const record = attendanceRecord || {
     trangThai: kq.trangThai,
     gioVao: gioQuet,
     phutTre: kq.phutTre,
     diemTru: kq.diemTru,
   };
 
-  await saveAttendance(data, month);
+  await setDoc(
+    attendanceRef(month),
+    {
+      data: {
+        [date]: {
+          [studentId]: {
+            [buoi]: {
+              [keyTiet]: record,
+            },
+          },
+        },
+      },
+    },
+    { merge: true }
+  );
 
   return {
     ok: true,
-    gioVao: gioQuet,
-    trangThai: kq.trangThai,
-    phutTre: kq.phutTre,
-    diemTru: kq.diemTru,
+    ...record,
   };
 }
 
