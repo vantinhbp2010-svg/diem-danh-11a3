@@ -1,0 +1,269 @@
+import { memo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import ModalPortal from "../ModalPortal";
+import { layGioPhutHienTai, layNgayHomNay } from "../thoiKhoaBieu";
+import AnimatedNumber from "./AnimatedNumber";
+
+/* =============================================================
+   TAB LỊCH SỬ
+   ============================================================= */
+function TabLichSu({
+  students,
+  ngayXem,
+  attendanceNgay,
+  onDoiNgay,
+  onSua,
+  onXoa,
+}) {
+  const [buoi, setBuoi] = useState("sang");
+  const [tietXem, setTietXem] = useState(1);
+  const [suaModal, setSuaModal] = useState(null);
+  const [suaStatus, setSuaStatus] = useState("Đúng giờ");
+  const [suaTime, setSuaTime] = useState("");
+
+  const dem = { "Đúng giờ": 0, "Đi trễ": 0, "Vắng": 0 };
+  students.forEach((s) => {
+    const a = (attendanceNgay[s.id] || {})[buoi]?.[`tiet${tietXem}`];
+    if (!a) dem["Vắng"]++;
+    else dem[a.trangThai] = (dem[a.trangThai] || 0) + 1;
+  });
+
+  function moSuaModal(studentId) {
+    const hs = students.find((s) => s.id === studentId);
+    const a = (attendanceNgay[studentId] || {})[buoi]?.[`tiet${tietXem}`];
+    setSuaModal({ studentId, hs });
+    setSuaStatus(a?.trangThai || "Đúng giờ");
+    setSuaTime(a?.gioVao || layGioPhutHienTai());
+  }
+
+  function luuSua() {
+    if (suaModal) {
+      onSua(suaModal.studentId, buoi, suaStatus, suaTime);
+      setSuaModal(null);
+    }
+  }
+
+  function formatNgay(ngay) {
+    if (!ngay) return "";
+    const [y, m, d] = ngay.split("-");
+    return `${d}/${m}/${y}`;
+  }
+
+  if (!ngayXem) return <p>⏳ Đang tải...</p>;
+
+  const [y, m, d] = ngayXem.split("-");
+  const tenThu = new Date(`${y}-${m}-${d}`).toLocaleDateString("vi-VN", {
+    weekday: "long",
+  });
+
+  return (
+    <>
+      <div className="chon-buoi" style={{ marginBottom: 15 }}>
+        <span>Buổi:</span>
+        <button
+          className={buoi === "sang" ? "active" : ""}
+          onClick={() => {
+            setBuoi("sang");
+            setTietXem(1);
+          }}
+        >
+          🌅 Sáng
+        </button>
+        <button
+          className={buoi === "chieu" ? "active" : ""}
+          onClick={() => {
+            setBuoi("chieu");
+            setTietXem(2);
+          }}
+        >
+          🌆 Chiều
+        </button>
+
+        <span style={{ marginLeft: 15 }}>Tiết:</span>
+        <select
+          value={tietXem}
+          onChange={(e) => setTietXem(Number(e.target.value))}
+          style={{ padding: "8px 14px", fontSize: 15 }}
+        >
+          {(buoi === "sang" ? [1, 2, 3, 4, 5] : [2, 3, 4, 5]).map((t) => (
+            <option key={t} value={t}>
+              Tiết {t}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="lichsu-toolbar">
+        <div className="lichsu-date-picker">
+          <label>📅 Xem ngày:</label>
+          <input
+            type="date"
+            value={ngayXem}
+            onChange={(e) => onDoiNgay(e.target.value)}
+            max={layNgayHomNay()}
+          />
+        </div>
+
+        <div className="lichsu-quick">
+          <button
+            onClick={() => onDoiNgay(layNgayHomNay())}
+          >
+            Hôm nay
+          </button>
+          <button
+            onClick={() => {
+              const d = new Date();
+              d.setDate(d.getDate() - 1);
+              onDoiNgay(layNgayHomNay(d));
+            }}
+          >
+            Hôm qua
+          </button>
+        </div>
+      </div>
+
+      <p style={{ marginTop: 20 }}>
+        📅 <b>{tenThu}</b>, ngày <b>{formatNgay(ngayXem)}</b> — Buổi{" "}
+        <b>{buoi === "sang" ? "Sáng" : "Chiều"}</b> — Tiết <b>{tietXem}</b>
+      </p>
+
+      <div className="thong-ke">
+        <div className="card dunggio">
+          ✅ Đúng giờ <b><AnimatedNumber value={dem["Đúng giờ"]} /></b>
+        </div>
+        <div className="card tre">
+          🟡 Đi trễ <b><AnimatedNumber value={dem["Đi trễ"]} /></b>
+        </div>
+        <div className="card vang">
+          ❌ Vắng <b><AnimatedNumber value={dem["Vắng"]} /></b>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>STT</th>
+            <th>Họ tên</th>
+            <th>Trạng thái</th>
+            <th>Giờ vào</th>
+            <th>Hành động</th>
+          </tr>
+        </thead>
+        <tbody>
+          {students.map((s, i) => {
+            const a = (attendanceNgay[s.id] || {})[buoi]?.[`tiet${tietXem}`];
+            let status = "❌ Vắng";
+            let cls = "vang";
+            if (a) {
+              if (a.trangThai === "Đúng giờ") {
+                status = "✅ Đúng giờ";
+                cls = "dunggio";
+              } else if (a.trangThai === "Đi trễ") {
+                status = `🟡 Đi trễ (${a.phutTre}p)`;
+                cls = "tre";
+              }
+            }
+            return (
+              <tr key={s.id} className={cls}>
+                <td>{i + 1}</td>
+                <td>{s.name}</td>
+                <td>{status}</td>
+                <td>{a ? a.gioVao : "—"}</td>
+                <td>
+                  <button
+                    onClick={() => moSuaModal(s.id)}
+                    style={{
+                      background: "#3b82f6",
+                      padding: "5px 10px",
+                      fontSize: 13,
+                    }}
+                  >
+                    ✏️ Sửa
+                  </button>
+                  {a && (
+                    <button
+                      onClick={() => onXoa(s.id, buoi)}
+                      style={{
+                        background: "#e74c3c",
+                        marginLeft: 4,
+                        padding: "5px 10px",
+                        fontSize: 13,
+                      }}
+                    >
+                      🗑️
+                    </button>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      <AnimatePresence>
+        {suaModal && (
+          <ModalPortal key="sua-diem-danh-lich-su">
+            <motion.div
+              className="modal-sua"
+              onClick={() => setSuaModal(null)}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <motion.div
+                className="modal-sua-box"
+                onClick={(e) => e.stopPropagation()}
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              >
+                <h3>✏️ Sửa điểm danh</h3>
+                <p>
+                  <b>{suaModal.hs?.name}</b> — Buổi{" "}
+                  {buoi === "sang" ? "Sáng" : "Chiều"} tiết {tietXem} ngày{" "}
+                  {formatNgay(ngayXem)}
+                </p>
+
+                <div className="sua-group">
+                  <label>Trạng thái:</label>
+                  <select
+                    value={suaStatus}
+                    onChange={(e) => setSuaStatus(e.target.value)}
+                  >
+                    <option value="Đúng giờ">✅ Đúng giờ</option>
+                    <option value="Đi trễ">🟡 Đi trễ</option>
+                    <option value="Vắng">❌ Vắng</option>
+                  </select>
+                </div>
+
+                <div className="sua-group">
+                  <label>Giờ vào (hh:mm):</label>
+                  <input
+                    type="time"
+                    value={suaTime}
+                    onChange={(e) => setSuaTime(e.target.value)}
+                  />
+                </div>
+
+                <div className="modal-buttons">
+                  <button
+                    onClick={() => setSuaModal(null)}
+                    style={{ background: "#94a3b8" }}
+                  >
+                    ❌ Hủy
+                  </button>
+                  <button onClick={luuSua} style={{ background: "#10b981" }}>
+                    ✅ Lưu
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          </ModalPortal>
+        )}
+      </AnimatePresence>
+    </>
+  );
+}
+
+export default memo(TabLichSu);
