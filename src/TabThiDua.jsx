@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import ModalPortal from "./ModalPortal";
+import { EmptyState, SkeletonLoading } from "./UxComponents";
+import { useUx } from "./UxContext";
 import { tinhDiemTruTuDong } from "./tinhDiemTuDong";
 import {
   getNgayNghi,
@@ -28,6 +30,7 @@ import "./App.css";
 
 export default function TabThiDua() {
   const { students, maLop } = useStudents();
+  const { confirm } = useUx();
   const [tuan, setTuan] = useState(layTuanISO(new Date()));
   const [tab, setTab] = useState("lop");
   const [duLieu, setDuLieu] = useState(null);
@@ -140,7 +143,7 @@ export default function TabThiDua() {
   }
 
   async function handleXoa(doiTuong, index, loai) {
-    if (!window.confirm("Xóa mục này?")) return;
+    if (!(await confirm({ message: "Xóa mục này?", destructive: true }))) return;
     try {
       if (doiTuong === "lop") {
         await xoaCuaLop(maLop, tuan, index, loai);
@@ -205,14 +208,12 @@ export default function TabThiDua() {
   }
 
   async function handleXoaNgayNghi(ngay, buoi) {
-    if (
-      !window.confirm(
-        `Bỏ đánh dấu nghỉ ngày ${ngay} buổi ${
+    if (!(await confirm({
+      message: `Bỏ đánh dấu nghỉ ngày ${ngay} buổi ${
           buoi === "sang" ? "sáng" : "chiều"
-        }?`
-      )
-    )
-      return;
+        }?`,
+      destructive: true,
+    }))) return;
     try {
       const moi = await xoaNgayNghi(maLop, ngay, buoi);
       setNgayNghi(moi || {});
@@ -241,7 +242,7 @@ export default function TabThiDua() {
   }
 
   if (loading || !duLieu) {
-    return <p style={{ textAlign: "center", padding: 40 }}>⏳ Đang tải...</p>;
+    return <SkeletonLoading variant="table" rows={6} />;
   }
 
   const lopData = duLieu.lop || {
@@ -514,15 +515,11 @@ export default function TabThiDua() {
 
           <h4>📋 Lịch sử vi phạm</h4>
           {lopData.viPham.length === 0 ? (
-            <p
-              style={{
-                color: "#94a3b8",
-                textAlign: "center",
-                padding: 20,
-              }}
-            >
-              Không có vi phạm nào 🎉
-            </p>
+            <EmptyState
+              icon="🎉"
+              title="Tuyệt vời! Lớp không có vi phạm nào"
+              description="Tiếp tục duy trì nề nếp tốt của lớp."
+            />
           ) : (
             <ul className="ls-thidua">
               {lopData.viPham.map((v, i) => (
@@ -693,15 +690,11 @@ export default function TabThiDua() {
 
           <h4>📋 Lịch sử vi phạm</h4>
           {hsData.viPham.length === 0 ? (
-            <p
-              style={{
-                color: "#94a3b8",
-                textAlign: "center",
-                padding: 20,
-              }}
-            >
-              Không có vi phạm nào 🎉
-            </p>
+            <EmptyState
+              icon="🎉"
+              title="Tuyệt vời! Học sinh không có vi phạm nào"
+              description="Tiếp tục duy trì kết quả tốt."
+            />
           ) : (
             <ul className="ls-thidua">
               {hsData.viPham.map((v, i) => (

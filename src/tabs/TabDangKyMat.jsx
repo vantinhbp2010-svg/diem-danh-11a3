@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { useUx } from "../UxContext";
 
 /* =============================================================
    TAB ĐĂNG KÝ KHUÔN MẶT
    ============================================================= */
 function TabDangKyMat({ students, maLop }) {
+  const { confirm } = useUx();
   const [selectedId, setSelectedId] = useState(students[0]?.id || "");
   const selected = students.some((student) => student.id === selectedId)
     ? selectedId
@@ -114,7 +116,10 @@ function TabDangKyMat({ students, maLop }) {
 
   async function xoaMat() {
     const hs = students.find((s) => s.id === selected);
-    if (!window.confirm(`Xóa khuôn mặt của ${hs?.name}?`)) return;
+    if (!(await confirm({
+      message: `Xóa khuôn mặt của ${hs?.name}?`,
+      destructive: true,
+    }))) return;
     setSaving(true);
     try {
       const { clearFaces } = await import("../faceStorage");

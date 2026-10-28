@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { auth } from "./firebase";
+import { useUx } from "./UxContext";
 
 async function adminRequest(path, options = {}) {
   const user = auth.currentUser;
@@ -22,6 +23,7 @@ async function adminRequest(path, options = {}) {
 }
 
 export default function TabQuanLyTaiKhoan() {
+  const { confirm } = useUx();
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [workingUid, setWorkingUid] = useState("");
@@ -68,7 +70,10 @@ export default function TabQuanLyTaiKhoan() {
   }
 
   async function handleDelete(teacher) {
-    if (!window.confirm(`Xóa tài khoản giáo viên ${teacher.email}?`)) return;
+    if (!(await confirm({
+      message: `Xóa tài khoản giáo viên ${teacher.email}?`,
+      destructive: true,
+    }))) return;
     setMsg("");
     setWorkingUid(teacher.uid);
     try {

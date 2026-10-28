@@ -2,15 +2,18 @@ import { useState, useRef } from "react";
 import { useStudents } from "./StudentsContext";
 import ModalPortal from "./ModalPortal";
 import { saveDSLop, xoaLop } from "./lopStorage";
+import { useUx } from "./UxContext";
+import { SkeletonLoading } from "./UxComponents";
 import "./App.css";
 
 export default function QuanLyLop() {
+  const { confirm } = useUx();
   const {
     students,
     reload,
     maLop,
     danhSachLop,
-    setStudents,
+    loading,
     chonLop,
     doiTen,
   } = useStudents();
@@ -147,12 +150,11 @@ export default function QuanLyLop() {
   }
 
   async function handleXoaHS(hs) {
-    if (
-      !window.confirm(
-        `⚠️ XÓA học sinh khỏi lớp?\n\n${hs.name} (${hs.id})\n\n` +
-          `Lưu ý: Chỉ xóa khỏi danh sách lớp. Điểm danh cũ vẫn còn.`
-      )
-    )
+    if (!(await confirm({
+      message: `XÓA học sinh khỏi lớp?\n\n${hs.name} (${hs.id})\n\n` +
+        `Lưu ý: Chỉ xóa khỏi danh sách lớp. Điểm danh cũ vẫn còn.`,
+      destructive: true,
+    })))
       return;
 
     try {
@@ -202,11 +204,10 @@ export default function QuanLyLop() {
       setMsg("❌ Chưa có lớp nào");
       return;
     }
-    if (
-      !window.confirm(
-        `Xóa lớp "${maLop}"?\n\nToàn bộ học sinh của lớp này sẽ bị xóa khỏi danh sách.`
-      )
-    )
+    if (!(await confirm({
+      message: `Xóa lớp "${maLop}"?\n\nToàn bộ học sinh của lớp này sẽ bị xóa khỏi danh sách.`,
+      destructive: true,
+    })))
       return;
 
     try {
@@ -235,6 +236,15 @@ export default function QuanLyLop() {
 
   const dsLopKeys = Object.keys(danhSachLop);
   const maHSTiepTheo = maLop ? sinhMaHS(students, maLop) : "";
+
+  if (loading) {
+    return (
+      <>
+        <h3>📋 Quản lý lớp</h3>
+        <SkeletonLoading variant="table" rows={6} />
+      </>
+    );
+  }
 
   return (
     <>

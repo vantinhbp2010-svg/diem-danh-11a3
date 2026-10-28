@@ -156,6 +156,42 @@ export async function markAttendance(studentId, buoi, tiet) {
   };
 }
 
+export async function syncQueuedAttendance(payload) {
+  const { studentId, date, buoi, tiet, record } = payload;
+  if (!studentId || !date || !buoi || !tiet || !record) {
+    throw new Error("Dữ liệu điểm danh ngoại tuyến không hợp lệ");
+  }
+
+  const month = monthOfDate(date);
+  const data = await getAttendanceByMonth(month);
+  const keyTiet = `tiet${tiet}`;
+  if (data[date]?.[studentId]?.[buoi]?.[keyTiet]) return;
+
+  if (!data[date]) data[date] = {};
+  if (!data[date][studentId]) data[date][studentId] = {};
+  if (!data[date][studentId][buoi]) data[date][studentId][buoi] = {};
+  data[date][studentId][buoi][keyTiet] = record;
+  await saveAttendance(data, month);
+}
+
+export async function restoreAttendanceSession(studentId, date, buoi, records) {
+  const month = monthOfDate(date);
+  const data = await getAttendanceByMonth(month);
+  if (!data[date]) data[date] = {};
+  if (!data[date][studentId]) data[date][studentId] = {};
+
+  if (records && Object.keys(records).length > 0) {
+    data[date][studentId][buoi] = records;
+  } else {
+    delete data[date][studentId][buoi];
+    if (Object.keys(data[date][studentId]).length === 0) {
+      delete data[date][studentId];
+    }
+  }
+
+  await saveAttendance(data, month);
+}
+
 export async function xoaDiemDanh(studentId, buoi, tiet) {
   const today = layNgayHomNay();
   const month = monthOfDate(today);

@@ -3,6 +3,7 @@ import { StrictMode, lazy, Suspense, useState, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { registerSW } from "virtual:pwa-register";
+import ToastProvider from "./ToastProvider";
 import "./index.css";
 const App = lazy(() => import("./App.jsx"));
 const Login = lazy(() => import("./Login.jsx"));
@@ -53,30 +54,32 @@ registerSW({ immediate: true });
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <BrowserRouter>
-      <Suspense
-        fallback={
-          <div className="app-loading" role="status">
-            Đang tải...
-          </div>
-        }
-      >
-        <Routes>
-          <Route path="/" element={<Login />} />
-          <Route path="/login" element={<Login />} />
-          <Route element={<StudentsRoute />}>
-            <Route path="/khach" element={<Khach />} />
-            <Route element={<ProtectedRoute />}>
-              <Route path="/diemdanhhocsinhlop11A3" element={<App />} />
+    <ToastProvider>
+      <BrowserRouter>
+        <Suspense
+          fallback={
+            <div className="app-loading" role="status">
+              Đang tải...
+            </div>
+          }
+        >
+          <Routes>
+            <Route path="/" element={<Login />} />
+            <Route path="/login" element={<Login />} />
+            <Route element={<StudentsRoute />}>
+              <Route path="/khach" element={<Khach />} />
+              <Route element={<ProtectedRoute />}>
+                <Route path="/diemdanhhocsinhlop11A3" element={<App />} />
+              </Route>
             </Route>
-          </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Suspense>
-      <Suspense fallback={null}>
-        <ChatBot />
-      </Suspense>
-      <PWABanner />
-    </BrowserRouter>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
+        <Suspense fallback={null}>
+          <ChatBot />
+        </Suspense>
+        <PWABanner />
+      </BrowserRouter>
+    </ToastProvider>
   </StrictMode>
 );

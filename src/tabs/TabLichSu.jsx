@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import ModalPortal from "../ModalPortal";
 import { layGioPhutHienTai, layNgayHomNay } from "../thoiKhoaBieu";
 import AnimatedNumber from "./AnimatedNumber";
+import { SkeletonLoading } from "../UxComponents";
 
 /* =============================================================
    TAB LỊCH SỬ
@@ -11,6 +12,7 @@ function TabLichSu({
   students,
   ngayXem,
   attendanceNgay,
+  loading,
   onDoiNgay,
   onSua,
   onXoa,
@@ -49,7 +51,7 @@ function TabLichSu({
     return `${d}/${m}/${y}`;
   }
 
-  if (!ngayXem) return <p>⏳ Đang tải...</p>;
+  if (loading || !ngayXem) return <SkeletonLoading variant="table" rows={6} />;
 
   const [y, m, d] = ngayXem.split("-");
   const tenThu = new Date(`${y}-${m}-${d}`).toLocaleDateString("vi-VN", {

@@ -1,11 +1,13 @@
 import { lazy, Suspense, useState, useRef, useEffect } from "react";
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import { hoiChatBot, resetHistory } from "./groq";
+import { useUx } from "./UxContext";
 import "./App.css";
 
 const ChatMessage = lazy(() => import("./ChatMessage"));
 
 export default function ChatBot() {
+  const { confirm } = useUx();
   const [mo, setMo] = useState(false);
   const [tinNhan, setTinNhan] = useState([
     {
@@ -81,8 +83,11 @@ export default function ChatBot() {
     }
   }
 
-  function reset() {
-    if (!window.confirm("Xóa lịch sử trò chuyện?")) return;
+  async function reset() {
+    if (!(await confirm({
+      message: "Xóa lịch sử trò chuyện?",
+      destructive: true,
+    }))) return;
     resetHistory();
     setTinNhan([
       {

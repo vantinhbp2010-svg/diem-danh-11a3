@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { layNgayHomNay } from "../thoiKhoaBieu";
 import AnimatedNumber from "./AnimatedNumber";
+import { SkeletonLoading } from "../UxComponents";
 
 const EMPTY_THONG_KE = [];
 
@@ -51,11 +52,7 @@ function TabThongKe({ thangThongKe, duLieuThongKe, onDoiThang }) {
   );
 
   if (!duLieuThongKe) {
-    return (
-      <div style={{ textAlign: "center", padding: 60 }}>
-        <p>⏳ Đang tải thống kê...</p>
-      </div>
-    );
+    return <SkeletonLoading variant="stats" />;
   }
 
   const { dungGio: tongDungGio, diTre: tongDiTre, vang: tongVang } = tong;

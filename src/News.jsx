@@ -7,9 +7,12 @@ import {
   xoaTin,
   uploadAnh,
 } from "./newsStorage";
+import { useUx } from "./UxContext";
+import { EmptyState, SkeletonLoading } from "./UxComponents";
 import "./App.css";
 
 export default function News({ laGiaoVien, tenNguoiDung }) {
+  const { confirm } = useUx();
   const [danhSach, setDanhSach] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("hienthi");
@@ -161,13 +164,16 @@ export default function News({ laGiaoVien, tenNguoiDung }) {
   }
 
   async function handleDuyet(id) {
-    if (!window.confirm("Duyệt tin này?")) return;
+    if (!(await confirm({ message: "Duyệt tin này?" }))) return;
     await duyetTin(id);
     await loadData();
   }
 
   async function handleXoa(id) {
-    if (!window.confirm("Xóa tin này? Không thể hoàn tác!")) return;
+    if (!(await confirm({
+      message: "Xóa tin này? Không thể hoàn tác!",
+      destructive: true,
+    }))) return;
     await xoaTin(id);
     await loadData();
   }
@@ -217,14 +223,18 @@ export default function News({ laGiaoVien, tenNguoiDung }) {
       </div>
 
       {thongBao && <div className="msg">{thongBao}</div>}
-      {loading && <p style={{ textAlign: "center" }}>⏳ Đang tải...</p>}
+      {loading && <SkeletonLoading variant="table" rows={4} />}
 
       {tab === "hienthi" && !loading && (
         <>
           {tinDaDuyet.length === 0 ? (
-            <p style={{ textAlign: "center", color: "#94a3b8", padding: 40 }}>
-              📭 Chưa có bản tin nào
-            </p>
+            <EmptyState
+              icon="📰"
+              title="Chưa có bản tin nào"
+              description="Hãy đăng bản tin đầu tiên để chia sẻ thông tin với lớp."
+              actionText={laGiaoVien ? "Đăng tin ngay" : undefined}
+              onAction={laGiaoVien ? () => setTab("dang") : undefined}
+            />
           ) : (
             <div className="news-list">
               {tinDaDuyet.map((n) => (
@@ -284,9 +294,11 @@ export default function News({ laGiaoVien, tenNguoiDung }) {
       {tab === "chuDuyet" && laGiaoVien && !loading && (
         <>
           {tinChoDuyet.length === 0 ? (
-            <p style={{ textAlign: "center", color: "#94a3b8", padding: 40 }}>
-              ✅ Không có tin chờ duyệt
-            </p>
+            <EmptyState
+              icon="✅"
+              title="Không có tin chờ duyệt"
+              description="Các tin học sinh gửi đã được xử lý."
+            />
           ) : (
             <div className="news-list">
               {tinChoDuyet.map((n) => (

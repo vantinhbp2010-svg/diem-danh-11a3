@@ -1,6 +1,5 @@
 import * as XLSX from "xlsx";
 import {
-  layTuanISO,
   tenTuan,
   khoangNgayTuan,
   xepLoai,
@@ -93,8 +92,7 @@ export async function xuatExcelThang(maLop, tuanCode, students) {
   const { start } = layKhoangNgayTuanHoc(tuanCode);
 
   if (!start) {
-    alert("Không xác định được tuần");
-    return;
+    throw new Error("Không xác định được tuần");
   }
 
   const thang = start.getMonth();

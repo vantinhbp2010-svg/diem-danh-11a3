@@ -6,7 +6,12 @@ export function xuatPDF(title = "Báo cáo điểm danh") {
     const printWindow = window.open("", "_blank", "width=1200,height=900");
 
     if (!printWindow) {
-      window.alert("Trình duyệt đã chặn cửa sổ in. Vui lòng cho phép popup để xuất PDF.");
+      window.dispatchEvent(new CustomEvent("app:toast", {
+        detail: {
+          type: "warning",
+          message: "Trình duyệt đã chặn cửa sổ in. Vui lòng cho phép popup để xuất PDF.",
+        },
+      }));
       return false;
     }
 

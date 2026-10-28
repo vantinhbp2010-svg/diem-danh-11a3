@@ -12,7 +12,11 @@ import {
   motion,
 } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { layNgayHomNay } from "./thoiKhoaBieu";
+import {
+  layGioPhutHienTai,
+  layNgayHomNay,
+  tinhTrangThai,
+} from "./thoiKhoaBieu";
 import {
   getAttendanceByMonth,
   markAttendance,
@@ -23,10 +27,61 @@ import {
   xoaDiemDanhTheoNgay,
   tinhThongKeThang,
   xacNhanKhongVang,
+  restoreAttendanceSession,
+  syncQueuedAttendance,
 } from "./storage";
+import {
+  queueOfflineAction,
+  readOfflineQueue,
+  syncOfflineQueue,
+} from "./offlineSync";
 import { logout, getUser, subscribeTeacherState } from "./auth";
 import { useStudents } from "./StudentsContext";
+import { useUx } from "./UxContext";
+import { SkeletonLoading } from "./UxComponents";
 import "./App.css";
+
+function playFeedbackSound(frequency) {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return;
+  try {
+    const context = new AudioContextClass();
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.frequency.value = frequency;
+    oscillator.type = "sine";
+    gain.gain.setValueAtTime(0.12, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.16);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.16);
+    oscillator.onended = () => context.close();
+  } catch (error) {
+    console.warn("Không phát được âm thanh phản hồi:", error);
+  }
+}
+
+function mergeQueuedAttendance(attendanceForDate, date) {
+  return readOfflineQueue().reduce((attendance, item) => {
+    if (item.action !== "markAttendance" || item.payload?.date !== date) {
+      return attendance;
+    }
+
+    const { studentId, buoi, tiet, record } = item.payload;
+    const keyTiet = `tiet${tiet}`;
+    return {
+      ...attendance,
+      [studentId]: {
+        ...attendance[studentId],
+        [buoi]: {
+          ...attendance[studentId]?.[buoi],
+          [keyTiet]: record,
+        },
+      },
+    };
+  }, attendanceForDate || {});
+}
 
 const News = lazy(() => import("./News"));
 const TabThiDua = lazy(() => import("./TabThiDua"));
@@ -38,16 +93,6 @@ const TabCameraAI = lazy(() => import("./tabs/TabCameraAI"));
 const TabLichSu = lazy(() => import("./tabs/TabLichSu"));
 const TabThongKe = lazy(() => import("./tabs/TabThongKe"));
 const TabDangKyMat = lazy(() => import("./tabs/TabDangKyMat"));
-
-function SkeletonLoading() {
-  return (
-    <div className="tab-skeleton" role="status" aria-label="Đang tải nội dung">
-      <span />
-      <span />
-      <span />
-    </div>
-  );
-}
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -94,16 +139,17 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [attendance, setAttendance] = useState({});
   const [today, setToday] = useState(() => layNgayHomNay());
-  const [msg, setMsg] = useState("");
 
   const [ngayXem, setNgayXem] = useState("");
   const [attendanceNgay, setAttendanceNgay] = useState({});
+  const [loadingLichSu, setLoadingLichSu] = useState(false);
   const [thangThongKe, setThangThongKe] = useState(() => {
     return layNgayHomNay().slice(0, 7);
   });
   const [duLieuThongKe, setDuLieuThongKe] = useState(null);
 
   const navigate = useNavigate();
+  const { showToast, confirm } = useUx();
   const user = getUser();
   const { students, maLop, danhSachLop, chonLop } = useStudents();
 
@@ -117,12 +163,12 @@ export default function App() {
     try {
       const d = layNgayHomNay();
       const monthData = await getAttendanceByMonth(d.slice(0, 7));
-      setAttendance(monthData[d] || {});
+      setAttendance(mergeQueuedAttendance(monthData[d], d));
     } catch (err) {
       console.error("Lỗi tải dữ liệu:", err);
-      setMsg("Lỗi tải dữ liệu từ cloud: " + err.message);
+      showToast({ type: "error", message: "Lỗi tải dữ liệu từ cloud: " + err.message });
     }
-  }, []);
+  }, [showToast]);
 
   useEffect(() => {
     async function initApp() {
@@ -145,53 +191,154 @@ export default function App() {
       const currentDate = layNgayHomNay();
       const monthData = await getAttendanceByMonth(currentDate.slice(0, 7));
       setToday(currentDate);
-      setAttendance(monthData[currentDate] || {});
+      setAttendance(mergeQueuedAttendance(monthData[currentDate], currentDate));
     } catch (err) {
       console.error(err);
     }
   }, []);
 
+  useEffect(() => {
+    let syncing = false;
+    async function syncQueued() {
+      if (syncing || !navigator.onLine) return;
+      syncing = true;
+      try {
+        if (readOfflineQueue().length === 0) return;
+        const remaining = await syncOfflineQueue(async (item) => {
+          if (item.action !== "markAttendance") {
+            throw new Error(`Tác vụ ngoại tuyến không được hỗ trợ: ${item.action}`);
+          }
+          await syncQueuedAttendance(item.payload);
+        });
+        if (remaining === 0) {
+          await refresh();
+          showToast({ message: "Đã đồng bộ điểm danh ngoại tuyến", type: "success" });
+        } else {
+          showToast({
+            message: `Còn ${remaining} điểm danh chưa đồng bộ. Ứng dụng sẽ thử lại khi có mạng.`,
+            type: "warning",
+          });
+        }
+      } catch (error) {
+        console.error("Lỗi đồng bộ điểm danh ngoại tuyến:", error);
+        showToast({ type: "error", message: "Không thể đồng bộ dữ liệu ngoại tuyến: " + error.message });
+      } finally {
+        syncing = false;
+      }
+    }
+
+    window.addEventListener("online", syncQueued);
+    if (navigator.onLine) syncQueued();
+    return () => window.removeEventListener("online", syncQueued);
+  }, [refresh, showToast]);
+
   // ============ ĐIỂM DANH ============
   const handleMark = useCallback(async (id, buoi, tiet) => {
     try {
+      if (!navigator.onLine) {
+        const keyTiet = `tiet${tiet}`;
+        const alreadyQueued = readOfflineQueue().some((item) =>
+          item.action === "markAttendance" &&
+          item.payload?.studentId === id &&
+          item.payload?.date === layNgayHomNay() &&
+          item.payload?.buoi === buoi &&
+          item.payload?.tiet === tiet
+        );
+        if (attendance[id]?.[buoi]?.[keyTiet] || alreadyQueued) {
+          return { ok: false, message: `Học sinh này đã điểm danh tiết ${tiet} rồi!` };
+        }
+
+        const date = layNgayHomNay();
+        const gioVao = layGioPhutHienTai();
+        const result = tinhTrangThai(buoi, tiet, gioVao);
+        const record = {
+          trangThai: result.trangThai,
+          gioVao,
+          phutTre: result.phutTre,
+          diemTru: result.diemTru,
+        };
+        if (!queueOfflineAction("markAttendance", {
+          studentId: id,
+          date,
+          buoi,
+          tiet,
+          record,
+        })) {
+          throw new Error("Không thể lưu điểm danh vào hàng đợi trên thiết bị");
+        }
+        setAttendance((current) => ({
+          ...current,
+          [id]: {
+            ...current[id],
+            [buoi]: { ...current[id]?.[buoi], [keyTiet]: record },
+          },
+        }));
+        showToast({
+          message: "Đã lưu tạm điểm danh. Sẽ đồng bộ khi có mạng.",
+          type: "warning",
+        });
+        playFeedbackSound(880);
+        return { ok: true, ...record, offline: true };
+      }
+
       const res = await markAttendance(id, buoi, tiet);
-      setMsg(
-        res.ok
-          ? `Đã điểm danh tiết ${tiet} buổi ${
-              buoi === "sang" ? "sáng" : "chiều"
-            } lúc ${res.gioVao} — ${res.trangThai}${
-              res.phutTre > 0 ? ` (trễ ${res.phutTre} phút)` : ""
-            }`
-          : res.message
-      );
+      if (res.ok) {
+        showToast({
+          message: `Đã điểm danh tiết ${tiet} buổi ${
+            buoi === "sang" ? "sáng" : "chiều"
+          } lúc ${res.gioVao} — ${res.trangThai}${
+            res.phutTre > 0 ? ` (trễ ${res.phutTre} phút)` : ""
+          }`,
+          type: "success",
+        });
+        playFeedbackSound(880);
+      } else {
+        showToast({ message: res.message, type: "warning" });
+      }
       await refresh();
-      setTimeout(() => setMsg(""), 3000);
       return res;
     } catch (err) {
-      setMsg("Lỗi: " + err.message);
+      showToast({ type: "error", message: "Lỗi: " + err.message });
       return { ok: false, message: err.message };
     }
-  }, [refresh]);
+  }, [attendance, refresh, showToast]);
 
   const handleXoa = useCallback(async (id, buoi, tiet) => {
     const hs = students.find((s) => s.id === id);
-    if (
-      !window.confirm(
-        `Xóa điểm danh tiết ${tiet} buổi ${
+    if (!(await confirm({
+      message: `Xóa điểm danh tiết ${tiet} buổi ${
           buoi === "sang" ? "sáng" : "chiều"
-        } của:\n\n${hs?.name} (${hs?.id})?`
-      )
-    )
-      return;
+        } của:\n\n${hs?.name} (${hs?.id})?`,
+      destructive: true,
+    }))) return;
     try {
+      const date = layNgayHomNay();
+      const previous = attendance[id]?.[buoi]?.[`tiet${tiet}`];
       await xoaDiemDanh(id, buoi, tiet);
-      setMsg(`Đã xóa điểm danh của ${hs?.name}`);
       await refresh();
-      setTimeout(() => setMsg(""), 3000);
+      showToast({
+        message: `Đã xóa điểm danh của ${hs?.name}`,
+        type: "success",
+        duration: 5000,
+        action: previous && {
+          label: "Hoàn tác",
+          onClick: async () => {
+            try {
+              await restoreAttendanceSession(id, date, buoi, {
+                [`tiet${tiet}`]: previous,
+              });
+              await refresh();
+              showToast({ message: "Đã khôi phục điểm danh", type: "success" });
+            } catch (error) {
+              showToast({ message: "Không thể hoàn tác: " + error.message, type: "error" });
+            }
+          },
+        },
+      });
     } catch (err) {
-      setMsg("Lỗi xóa: " + err.message);
+      showToast({ type: "error", message: "Lỗi xóa: " + err.message });
     }
-  }, [students, refresh]);
+  }, [students, attendance, refresh, confirm, showToast]);
 
   const handleSuaHomNay = useCallback(async (id, buoi, tiet, status, time) => {
     try {
@@ -215,65 +362,57 @@ export default function App() {
       const { saveAttendance } = await import("./storage");
       await saveAttendance(data, todayStr.slice(0, 7));
 
-      setMsg(`✅ Đã sửa điểm danh`);
+      showToast({ message: "Đã sửa điểm danh", type: "success" });
       await refresh();
-      setTimeout(() => setMsg(""), 3000);
     } catch (err) {
-      setMsg("❌ Lỗi sửa: " + err.message);
+      showToast({ type: "error", message: "Lỗi sửa: " + err.message });
     }
-  }, [refresh]);
+  }, [refresh, showToast]);
 
   const handleXacNhan = useCallback(async (id, buoi, tiet) => {
     const hs = students.find((s) => s.id === id);
-    if (
-      !window.confirm(
-        `Xác nhận "${hs?.name}" VẮNG CÓ PHÉP tiết ${tiet} buổi ${
+    if (!(await confirm({
+      message: `Xác nhận "${hs?.name}" VẮNG CÓ PHÉP tiết ${tiet} buổi ${
           buoi === "sang" ? "sáng" : "chiều"
-        }?\n\n` + `→ Chỉ trừ 5đ thay vì 10đ.`
-      )
-    )
-      return;
+        }?\n\n→ Chỉ trừ 5đ thay vì 10đ.`,
+    }))) return;
 
     try {
       const res = await xacNhanKhongVang(id, today, buoi, tiet);
       if (res.ok) {
-        setMsg(`✅ Đã xác nhận: ${hs?.name} — vắng có phép (chỉ trừ 5đ)`);
+        showToast({ message: `Đã xác nhận: ${hs?.name} — vắng có phép (chỉ trừ 5đ)`, type: "success" });
         await refresh();
       } else {
-        setMsg(`⚠️ ${res.message}`);
+        showToast({ message: res.message, type: "warning" });
       }
-      setTimeout(() => setMsg(""), 3000);
     } catch (err) {
-      setMsg("❌ Lỗi: " + err.message);
+      showToast({ type: "error", message: "Lỗi: " + err.message });
     }
-  }, [students, today, refresh]);
+  }, [students, today, refresh, confirm, showToast]);
 
   const handleXoaTatCa = useCallback(async (id) => {
     const hs = students.find((s) => s.id === id);
-    if (
-      !window.confirm(
-        `⚠️ XÓA TẤT CẢ dữ liệu của:\n\n${hs?.name} (${hs?.id})\n\n` +
+    if (!(await confirm({
+      message: `XÓA TẤT CẢ dữ liệu của:\n\n${hs?.name} (${hs?.id})\n\n` +
           `Bao gồm:\n` +
           `• Điểm danh\n` +
           `• Khuôn mặt đã đăng ký\n\n` +
-          `Hành động này KHÔNG THỂ hoàn tác!`
-      )
-    )
-      return;
+          `Hành động này KHÔNG THỂ hoàn tác!`,
+      destructive: true,
+    }))) return;
 
     try {
-      setMsg(`⏳ Đang xóa dữ liệu của ${hs?.name}...`);
       await xoaTatCaCuaHocSinh(id, maLop);
-      setMsg(`✅ Đã xóa toàn bộ dữ liệu của ${hs?.name}`);
+      showToast({ message: `Đã xóa toàn bộ dữ liệu của ${hs?.name}`, type: "success" });
       await refresh();
-      setTimeout(() => setMsg(""), 3000);
     } catch (err) {
-      setMsg("❌ Lỗi xóa: " + err.message);
+      showToast({ type: "error", message: "Lỗi xóa: " + err.message });
     }
-  }, [students, maLop, refresh]);
+  }, [students, maLop, refresh, confirm, showToast]);
 
   // ============ LỊCH SỬ ============
   const loadLichSu = useCallback(async () => {
+    setLoadingLichSu(true);
     try {
       const ngay = ngayXem || layNgayHomNay();
       if (!ngayXem) setNgayXem(ngay);
@@ -281,50 +420,78 @@ export default function App() {
       setAttendanceNgay(data);
     } catch (err) {
       console.error(err);
+      showToast({ type: "error", message: "Lỗi tải lịch sử: " + err.message });
+    } finally {
+      setLoadingLichSu(false);
     }
-  }, [ngayXem]);
+  }, [ngayXem, showToast]);
 
   const doiNgay = useCallback(async (ngay) => {
     setNgayXem(ngay);
-    const data = await getAttendanceByDate(ngay);
-    setAttendanceNgay(data);
-  }, []);
+    setLoadingLichSu(true);
+    try {
+      const data = await getAttendanceByDate(ngay);
+      setAttendanceNgay(data);
+    } catch (error) {
+      showToast({ type: "error", message: "Lỗi tải lịch sử: " + error.message });
+    } finally {
+      setLoadingLichSu(false);
+    }
+  }, [showToast]);
 
   const handleSuaDiemDanh = useCallback(async (studentId, buoi, status, time) => {
     await updateAttendance(studentId, ngayXem, buoi, 1, status, time);
-    setMsg(`Đã sửa điểm danh`);
+    showToast({ message: "Đã sửa điểm danh", type: "success" });
     await doiNgay(ngayXem);
-    setTimeout(() => setMsg(""), 3000);
-  }, [ngayXem, doiNgay]);
+  }, [ngayXem, doiNgay, showToast]);
 
   const handleXoaNgay = useCallback(async (studentId, buoi) => {
     const hs = students.find((s) => s.id === studentId);
-    if (
-      !window.confirm(
-        `Xóa TẤT CẢ điểm danh ${buoi === "sang" ? "sáng" : "chiều"} ngày ${
+    if (!(await confirm({
+      message: `Xóa TẤT CẢ điểm danh ${buoi === "sang" ? "sáng" : "chiều"} ngày ${
           ngayXem
-        } của ${hs?.name}?`
-      )
-    )
-      return;
-    await xoaDiemDanhTheoNgay(studentId, ngayXem, buoi);
-    await doiNgay(ngayXem);
-    setMsg(`Đã xóa điểm danh của ${hs?.name}`);
-    setTimeout(() => setMsg(""), 3000);
-  }, [students, ngayXem, doiNgay]);
+        } của ${hs?.name}?`,
+      destructive: true,
+    }))) return;
+    try {
+      const previous = attendanceNgay[studentId]?.[buoi];
+      await xoaDiemDanhTheoNgay(studentId, ngayXem, buoi);
+      await doiNgay(ngayXem);
+      showToast({
+        message: `Đã xóa điểm danh của ${hs?.name}`,
+        type: "success",
+        duration: 5000,
+        action: previous && {
+          label: "Hoàn tác",
+          onClick: async () => {
+            try {
+              await restoreAttendanceSession(studentId, ngayXem, buoi, previous);
+              await doiNgay(ngayXem);
+              showToast({ message: "Đã khôi phục điểm danh", type: "success" });
+            } catch (error) {
+              showToast({ message: "Không thể hoàn tác: " + error.message, type: "error" });
+            }
+          },
+        },
+      });
+    } catch (error) {
+      showToast({ type: "error", message: "Lỗi xóa: " + error.message });
+    }
+  }, [students, ngayXem, attendanceNgay, doiNgay, confirm, showToast]);
 
   // ============ THỐNG KÊ ============
   const loadThongKe = useCallback(async (thang) => {
     try {
       const thangDung = thang || thangThongKe;
       setThangThongKe(thangDung);
+      setDuLieuThongKe(null);
       const data = await tinhThongKeThang(thangDung, students);
       setDuLieuThongKe(data);
     } catch (err) {
       console.error("Lỗi thống kê:", err);
-      setMsg("Lỗi tải thống kê: " + err.message);
+      showToast({ type: "error", message: "Lỗi tải thống kê: " + err.message });
     }
-  }, [students, thangThongKe]);
+  }, [students, thangThongKe, showToast]);
 
   // ============ EXCEL ============
   async function exportExcel() {
@@ -350,21 +517,20 @@ export default function App() {
 
   // ============ XÓA HẾT ============
   async function xoaDuLieu() {
-    if (
-      !window.confirm(
-        "⚠️ XÓA HẾT dữ liệu điểm danh, khuôn mặt trên CLOUD?\n\nKhông thể hoàn tác!"
-      )
-    )
+    if (!(await confirm({
+      message: "XÓA HẾT dữ liệu điểm danh, khuôn mặt trên CLOUD?\n\nKhông thể hoàn tác!",
+      destructive: true,
+    })))
       return;
     try {
       const { clearAllAttendance } = await import("./storage");
       const { clearAllFaces } = await import("./faceStorage");
       await clearAllAttendance();
       await clearAllFaces();
-      alert("✅ Đã xóa hết dữ liệu!");
+      showToast({ message: "Đã xóa hết dữ liệu!", type: "success" });
       window.location.reload();
     } catch (err) {
-      alert("Lỗi xóa: " + err.message);
+      showToast({ type: "error", message: "Lỗi xóa: " + err.message });
     }
   }
 
@@ -413,12 +579,10 @@ export default function App() {
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
-      setMsg("✅ Đã xuất backup Firestore");
-      setTimeout(() => setMsg(""), 2500);
+      showToast({ message: "Đã xuất backup Firestore", type: "success" });
     } catch (error) {
       console.error("Backup lỗi:", error);
-      setMsg("❌ Backup thất bại: " + error.message);
-      setTimeout(() => setMsg(""), 3000);
+      showToast({ type: "error", message: "Backup thất bại: " + error.message });
     }
   }
 
@@ -426,7 +590,11 @@ export default function App() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const confirmed = window.confirm("📥 Tải dữ liệu Firestore từ file backup lên máy chủ? Hành động này sẽ ghi đè dữ liệu hiện tại.");
+    const confirmed = await confirm({
+      message: "Tải dữ liệu Firestore từ file backup lên máy chủ? Hành động này sẽ ghi đè dữ liệu hiện tại.",
+      destructive: true,
+      confirmText: "Khôi phục",
+    });
     if (!confirmed) {
       event.target.value = "";
       return;
@@ -455,25 +623,23 @@ export default function App() {
         await setDoc(doc(db, "lop", lopKey), value);
       }
 
-      setMsg("✅ Đã phục hồi dữ liệu Firestore");
-      setTimeout(() => setMsg(""), 2500);
+      showToast({ message: "Đã phục hồi dữ liệu Firestore", type: "success" });
       window.location.reload();
     } catch (error) {
       console.error("Restore lỗi:", error);
-      setMsg("❌ Restore thất bại: " + error.message);
-      setTimeout(() => setMsg(""), 3000);
+      showToast({ type: "error", message: "Restore thất bại: " + error.message });
     } finally {
       event.target.value = "";
     }
   }
 
   async function handleLogout() {
-    if (window.confirm("Đăng xuất?")) {
+    if (await confirm({ message: "Bạn có chắc muốn đăng xuất?" })) {
       try {
         await logout();
         navigate("/");
       } catch (error) {
-        setMsg(`Không thể đăng xuất: ${error.message}`);
+        showToast({ type: "error", message: `Không thể đăng xuất: ${error.message}` });
       }
     }
   }
@@ -778,8 +944,6 @@ export default function App() {
         </button>
       </div>
 
-      {msg && <div className="msg">{msg}</div>}
-
       <AnimatePresence mode="wait" initial={false}>
         {nhom === "diemdanh" && (
           <motion.div
@@ -875,6 +1039,7 @@ export default function App() {
                       students={students}
                       ngayXem={ngayXem}
                       attendanceNgay={attendanceNgay}
+                      loading={loadingLichSu}
                       onDoiNgay={doiNgay}
                       onSua={handleSuaDiemDanh}
                       onXoa={handleXoaNgay}
