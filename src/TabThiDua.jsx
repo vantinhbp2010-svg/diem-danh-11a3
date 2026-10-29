@@ -509,12 +509,23 @@ export default function TabThiDua() {
             </div>
           )}
 
-          <h4>📋 Lịch sử vi phạm</h4>
+          <h4>📋 Vi phạm do giáo viên nhập</h4>
+          <p
+            style={{
+              fontSize: 13,
+              color: "#64748b",
+              marginBottom: 15,
+              fontStyle: "italic",
+            }}
+          >
+            Đi trễ và vắng mặt đã được trừ tự động ở trên. Danh sách này chỉ
+            ghi nhận vi phạm nề nếp do giáo viên nhập.
+          </p>
           {lopData.viPham.length === 0 ? (
             <EmptyState
               icon="🎉"
-              title="Tuyệt vời! Lớp không có vi phạm nào"
-              description="Tiếp tục duy trì nề nếp tốt của lớp."
+              title="Chưa có vi phạm nề nếp nào được ghi nhận"
+              description="Điểm danh tự động (vắng, đi trễ) được hiển thị riêng."
             />
           ) : (
             <ul className="ls-thidua">
@@ -684,12 +695,23 @@ export default function TabThiDua() {
             </button>
           </div>
 
-          <h4>📋 Lịch sử vi phạm</h4>
+          <h4>📋 Vi phạm do giáo viên nhập</h4>
+          <p
+            style={{
+              fontSize: 13,
+              color: "#64748b",
+              marginBottom: 15,
+              fontStyle: "italic",
+            }}
+          >
+            Đi trễ và vắng mặt đã được trừ tự động ở trên. Danh sách này chỉ
+            ghi nhận vi phạm nề nếp do giáo viên nhập.
+          </p>
           {hsData.viPham.length === 0 ? (
             <EmptyState
               icon="🎉"
-              title="Tuyệt vời! Học sinh không có vi phạm nào"
-              description="Tiếp tục duy trì kết quả tốt."
+              title="Chưa có vi phạm nề nếp nào được ghi nhận"
+              description="Điểm danh tự động (vắng, đi trễ) được hiển thị riêng."
             />
           ) : (
             <ul className="ls-thidua">
