@@ -103,7 +103,7 @@ export function tenTuanHoc(tuanCode) {
  */
 export function khoangNgayTuanHoc(tuanCode) {
   if (!tuanCode) return "";
-  const [year, tuanPart] = tuanCode.split("-T");
+  const [, tuanPart] = tuanCode.split("-T");
   const tuan = parseInt(tuanPart);
 
   if (tuan === 0) return "Trước khai giảng";
@@ -128,7 +128,7 @@ export function khoangNgayTuanHoc(tuanCode) {
  */
 export function layKhoangNgayTuanHoc(tuanCode) {
   if (!tuanCode) return { start: null, end: null };
-  const [year, tuanPart] = tuanCode.split("-T");
+  const [, tuanPart] = tuanCode.split("-T");
   const tuan = parseInt(tuanPart);
 
   if (tuan === 0) return { start: null, end: null };

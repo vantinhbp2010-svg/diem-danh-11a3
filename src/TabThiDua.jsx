@@ -44,17 +44,13 @@ export default function TabThiDua() {
   );
   const [buoiNghiMoi, setBuoiNghiMoi] = useState("ca");
 
-  const [selected, setSelected] = useState(students[0]?.id || "");
+  const [selectedState, setSelected] = useState(students[0]?.id || "");
+  const selected = students.some((s) => s.id === selectedState)
+    ? selectedState
+    : students[0]?.id || "";
   const [modal, setModal] = useState(null);
   const [chonMa, setChonMa] = useState("");
   const [ghiChu, setGhiChu] = useState("");
-
-  useEffect(() => {
-    if (students.length > 0 && !students.find((s) => s.id === selected)) {
-      setSelected(students[0].id);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [students]);
 
   useEffect(() => {
     loadData();
@@ -104,7 +100,7 @@ export default function TabThiDua() {
       return;
     }
 
-    let item = null;
+    let item;
     if (modal.loai === "viPham") {
       const vp = DANH_SACH_VI_PHAM.find((v) => v.ma === chonMa);
       item = {
