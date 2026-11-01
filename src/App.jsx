@@ -40,28 +40,14 @@ import { logout, getUser, subscribeTeacherState } from "./auth";
 import { useStudents } from "./StudentsContext";
 import { useUx } from "./UxContext";
 import { SkeletonLoading } from "./UxComponents";
+import SkeletonCard from "./components/skeleton/SkeletonCard";
+import SkeletonChart from "./components/skeleton/SkeletonChart";
+import SkeletonTable from "./components/skeleton/SkeletonTable";
+import SoundSettings from "./components/SoundSettings";
+import BackgroundSettings from "./components/BackgroundSettings";
+import { playAttendance, playError } from "./utils/sound";
+import { confirmToast } from "./utils/toast";
 import "./App.css";
-
-function playFeedbackSound(frequency) {
-  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContextClass) return;
-  try {
-    const context = new AudioContextClass();
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    oscillator.frequency.value = frequency;
-    oscillator.type = "sine";
-    gain.gain.setValueAtTime(0.12, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.16);
-    oscillator.connect(gain);
-    gain.connect(context.destination);
-    oscillator.start();
-    oscillator.stop(context.currentTime + 0.16);
-    oscillator.onended = () => context.close();
-  } catch (error) {
-    console.warn("Không phát được âm thanh phản hồi:", error);
-  }
-}
 
 function mergeQueuedAttendance(attendanceForDate, date) {
   return readOfflineQueue().reduce((attendance, item) => {
@@ -141,6 +127,7 @@ export default function App() {
   const [tabCon, setTabCon] = useState("homnay");
   const [isAdmin, setIsAdmin] = useState(false);
   const [attendance, setAttendance] = useState({});
+  const [loadingAttendance, setLoadingAttendance] = useState(true);
   const [today, setToday] = useState(() => layNgayHomNay());
   const markingAttendance = useRef(new Set());
 
@@ -153,9 +140,15 @@ export default function App() {
   const [duLieuThongKe, setDuLieuThongKe] = useState(null);
 
   const navigate = useNavigate();
-  const { showToast, confirm } = useUx();
+  const { showToast } = useUx();
   const user = getUser();
-  const { students, maLop, danhSachLop, chonLop } = useStudents();
+  const {
+    students,
+    loading: loadingStudents,
+    maLop,
+    danhSachLop,
+    chonLop,
+  } = useStudents();
 
   useEffect(() => {
     return subscribeTeacherState(({ isAdmin: admin }) => {
@@ -164,6 +157,7 @@ export default function App() {
   }, []);
 
   const loadData = useCallback(async () => {
+    setLoadingAttendance(true);
     try {
       const d = layNgayHomNay();
       const monthData = await getAttendanceByMonth(d.slice(0, 7));
@@ -171,6 +165,8 @@ export default function App() {
     } catch (err) {
       console.error("Lỗi tải dữ liệu:", err);
       showToast({ type: "error", message: "Lỗi tải dữ liệu từ cloud: " + err.message });
+    } finally {
+      setLoadingAttendance(false);
     }
   }, [showToast]);
 
@@ -237,7 +233,7 @@ export default function App() {
   }, [refresh, showToast]);
 
   // ============ ĐIỂM DANH ============
-  const handleMark = useCallback(async (id, buoi, tiet) => {
+  const handleMark = useCallback(async (id, buoi, tiet, { sound = true } = {}) => {
     const date = layNgayHomNay();
     const keyTiet = `tiet${tiet}`;
     const requestKey = `${date}:${id}:${buoi}:${tiet}`;
@@ -295,7 +291,7 @@ export default function App() {
           message: "Đã lưu tạm điểm danh. Sẽ đồng bộ khi có mạng.",
           type: "warning",
         });
-        playFeedbackSound(880);
+        if (sound) playAttendance();
         return { ok: true, ...record, offline: true };
       }
 
@@ -327,7 +323,7 @@ export default function App() {
           }`,
           type: "success",
         });
-        playFeedbackSound(880);
+        if (sound) playAttendance();
       } else {
         showToast({ message: res.message, type: "warning" });
       }
@@ -352,6 +348,7 @@ export default function App() {
         return { ...current, [id]: studentAttendance };
       });
       showToast({ type: "error", message: "Lỗi: " + err.message });
+      if (sound) playError();
       return { ok: false, message: err.message };
     } finally {
       markingAttendance.current.delete(requestKey);
@@ -360,7 +357,7 @@ export default function App() {
 
   const handleXoa = useCallback(async (id, buoi, tiet) => {
     const hs = students.find((s) => s.id === id);
-    if (!(await confirm({
+    if (!(await confirmToast({
       message: `Xóa điểm danh tiết ${tiet} buổi ${
           buoi === "sang" ? "sáng" : "chiều"
         } của:\n\n${hs?.name} (${hs?.id})?`,
@@ -393,7 +390,7 @@ export default function App() {
     } catch (err) {
       showToast({ type: "error", message: "Lỗi xóa: " + err.message });
     }
-  }, [students, attendance, refresh, confirm, showToast]);
+  }, [students, attendance, refresh, showToast]);
 
   const handleSuaHomNay = useCallback(async (id, buoi, tiet, status, time) => {
     try {
@@ -426,7 +423,7 @@ export default function App() {
 
   const handleXacNhan = useCallback(async (id, buoi, tiet) => {
     const hs = students.find((s) => s.id === id);
-    if (!(await confirm({
+    if (!(await confirmToast({
       message: `Xác nhận "${hs?.name}" VẮNG CÓ PHÉP tiết ${tiet} buổi ${
           buoi === "sang" ? "sáng" : "chiều"
         }?\n\n→ Chỉ trừ 5đ thay vì 10đ.`,
@@ -436,6 +433,7 @@ export default function App() {
       const res = await xacNhanKhongVang(id, today, buoi, tiet);
       if (res.ok) {
         showToast({ message: `Đã xác nhận: ${hs?.name} — vắng có phép (chỉ trừ 5đ)`, type: "success" });
+        playAttendance();
         await refresh();
       } else {
         showToast({ message: res.message, type: "warning" });
@@ -443,11 +441,11 @@ export default function App() {
     } catch (err) {
       showToast({ type: "error", message: "Lỗi: " + err.message });
     }
-  }, [students, today, refresh, confirm, showToast]);
+  }, [students, today, refresh, showToast]);
 
   const handleXoaTatCa = useCallback(async (id) => {
     const hs = students.find((s) => s.id === id);
-    if (!(await confirm({
+    if (!(await confirmToast({
       message: `XÓA TẤT CẢ dữ liệu của:\n\n${hs?.name} (${hs?.id})\n\n` +
           `Bao gồm:\n` +
           `• Điểm danh\n` +
@@ -463,7 +461,7 @@ export default function App() {
     } catch (err) {
       showToast({ type: "error", message: "Lỗi xóa: " + err.message });
     }
-  }, [students, maLop, refresh, confirm, showToast]);
+  }, [students, maLop, refresh, showToast]);
 
   // ============ LỊCH SỬ ============
   const loadLichSu = useCallback(async () => {
@@ -502,7 +500,7 @@ export default function App() {
 
   const handleXoaNgay = useCallback(async (studentId, buoi) => {
     const hs = students.find((s) => s.id === studentId);
-    if (!(await confirm({
+    if (!(await confirmToast({
       message: `Xóa TẤT CẢ điểm danh ${buoi === "sang" ? "sáng" : "chiều"} ngày ${
           ngayXem
         } của ${hs?.name}?`,
@@ -532,7 +530,7 @@ export default function App() {
     } catch (error) {
       showToast({ type: "error", message: "Lỗi xóa: " + error.message });
     }
-  }, [students, ngayXem, attendanceNgay, doiNgay, confirm, showToast]);
+  }, [students, ngayXem, attendanceNgay, doiNgay, showToast]);
 
   // ============ THỐNG KÊ ============
   const loadThongKe = useCallback(async (thang) => {
@@ -572,7 +570,7 @@ export default function App() {
 
   // ============ XÓA HẾT ============
   async function xoaDuLieu() {
-    if (!(await confirm({
+    if (!(await confirmToast({
       message: "XÓA HẾT dữ liệu điểm danh, khuôn mặt trên CLOUD?\n\nKhông thể hoàn tác!",
       destructive: true,
     })))
@@ -645,7 +643,7 @@ export default function App() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const confirmed = await confirm({
+    const confirmed = await confirmToast({
       message: "Tải dữ liệu Firestore từ file backup lên máy chủ? Hành động này sẽ ghi đè dữ liệu hiện tại.",
       destructive: true,
       confirmText: "Khôi phục",
@@ -689,7 +687,7 @@ export default function App() {
   }
 
   async function handleLogout() {
-    if (await confirm({ message: "Bạn có chắc muốn đăng xuất?" })) {
+    if (await confirmToast({ message: "Bạn có chắc muốn đăng xuất?" })) {
       try {
         await logout();
         navigate("/");
@@ -700,6 +698,17 @@ export default function App() {
   }
 
   const total = students.length;
+
+  if (loadingStudents) {
+    return (
+      <MotionConfig reducedMotion="user">
+        <div className="container skeleton-dashboard" role="status" aria-label="Đang tải lớp học">
+          <SkeletonTable rows={8} cols={5} ariaHidden />
+          <SkeletonCard ariaHidden />
+        </div>
+      </MotionConfig>
+    );
+  }
 
   // ✅ Nếu chưa có lớp HOẶC lớp rỗng → hiện thông báo
   if (!maLop || students.length === 0) {
@@ -844,7 +853,7 @@ export default function App() {
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <Suspense fallback={<SkeletonLoading />}>
+                    <Suspense fallback={<SkeletonTable rows={8} cols={5} />}>
                       <QuanLyLop />
                     </Suspense>
                   </motion.div>
@@ -896,7 +905,14 @@ export default function App() {
                     exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.18 }}
                   >
-                    <Suspense fallback={<SkeletonLoading />}>
+                    <Suspense
+                      fallback={
+                        <div className="skeleton-card-grid" role="status" aria-label="Đang tải lịch">
+                          <SkeletonCard ariaHidden />
+                          <SkeletonCard ariaHidden />
+                        </div>
+                      }
+                    >
                       <TabLichTrongDai />
                     </Suspense>
                   </motion.div>
@@ -912,7 +928,15 @@ export default function App() {
               exit={{ opacity: 0, x: -24 }}
               transition={{ duration: 0.22 }}
             >
-              <Suspense fallback={<SkeletonLoading />}>
+              <Suspense
+                fallback={
+                  <div className="skeleton-card-grid" role="status" aria-label="Đang tải thi đua">
+                    <SkeletonCard ariaHidden />
+                    <SkeletonCard ariaHidden />
+                    <SkeletonCard ariaHidden />
+                  </div>
+                }
+              >
                 <TabThiDua isAdmin={isAdmin} />
               </Suspense>
             </motion.div>
@@ -945,6 +969,8 @@ export default function App() {
                   <QuanLyThongBao />
                 </Suspense>
               )}
+              <SoundSettings />
+              <BackgroundSettings />
               <div className="caidat-grid">
                 <button onClick={handleLogout} className="caidat-btn">
                   🚪 Đăng xuất
@@ -1099,7 +1125,7 @@ export default function App() {
                   exit={{ opacity: 0, y: -20, scale: 0.98 }}
                   transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 >
-                  <Suspense fallback={<SkeletonLoading />}>
+                  <Suspense fallback={<SkeletonTable rows={8} cols={5} />}>
                     <TabDiemDanh
                       students={students}
                       attendance={attendance}
@@ -1110,6 +1136,7 @@ export default function App() {
                       onXoaTatCa={handleXoaTatCa}
                       onSua={handleSuaHomNay}
                       onXacNhan={handleXacNhan}
+                      loading={loadingAttendance}
                     />
                   </Suspense>
                 </motion.div>
@@ -1160,7 +1187,17 @@ export default function App() {
                   exit={{ opacity: 0, y: -20, scale: 0.98 }}
                   transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 >
-                  <Suspense fallback={<SkeletonLoading />}>
+                  <Suspense
+                    fallback={
+                      <div className="skeleton-dashboard" role="status" aria-label="Đang tải thống kê">
+                        <SkeletonChart />
+                        <div className="skeleton-card-grid">
+                          <SkeletonCard ariaHidden />
+                          <SkeletonCard ariaHidden />
+                        </div>
+                      </div>
+                    }
+                  >
                     <TabThongKe
                       thangThongKe={thangThongKe}
                       duLieuThongKe={duLieuThongKe}
@@ -1289,7 +1326,14 @@ export default function App() {
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.18 }}
                 >
-                  <Suspense fallback={<SkeletonLoading />}>
+                  <Suspense
+                    fallback={
+                      <div className="skeleton-card-grid" role="status" aria-label="Đang tải lịch">
+                        <SkeletonCard ariaHidden />
+                        <SkeletonCard ariaHidden />
+                      </div>
+                    }
+                  >
                     <TabLichTrongDai />
                   </Suspense>
                 </motion.div>
@@ -1305,7 +1349,15 @@ export default function App() {
             exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.22 }}
           >
-            <Suspense fallback={<SkeletonLoading />}>
+            <Suspense
+              fallback={
+                <div className="skeleton-card-grid" role="status" aria-label="Đang tải thi đua">
+                  <SkeletonCard ariaHidden />
+                  <SkeletonCard ariaHidden />
+                  <SkeletonCard ariaHidden />
+                </div>
+              }
+            >
               <TabThiDua isAdmin={isAdmin} />
             </Suspense>
           </motion.div>
@@ -1338,6 +1390,8 @@ export default function App() {
                 <QuanLyThongBao />
               </Suspense>
             )}
+            <SoundSettings />
+            <BackgroundSettings />
             <div className="caidat-grid">
               <button onClick={handleBackupFirebase} className="caidat-btn">
                 💾 Backup

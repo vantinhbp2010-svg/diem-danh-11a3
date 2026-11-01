@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { layNgayHomNay } from "../thoiKhoaBieu";
 import AnimatedNumber from "./AnimatedNumber";
-import { SkeletonLoading } from "../UxComponents";
+import SkeletonCard from "../components/skeleton/SkeletonCard";
+import SkeletonChart from "../components/skeleton/SkeletonChart";
 
 const EMPTY_THONG_KE = [];
 
@@ -52,7 +53,15 @@ function TabThongKe({ thangThongKe, duLieuThongKe, onDoiThang }) {
   );
 
   if (!duLieuThongKe) {
-    return <SkeletonLoading variant="stats" />;
+    return (
+      <div className="skeleton-dashboard" role="status" aria-label="Đang tải thống kê">
+        <SkeletonChart />
+        <div className="skeleton-card-grid">
+          <SkeletonCard ariaHidden />
+          <SkeletonCard ariaHidden />
+        </div>
+      </div>
+    );
   }
 
   const { dungGio: tongDungGio, diTre: tongDiTre, vang: tongVang } = tong;

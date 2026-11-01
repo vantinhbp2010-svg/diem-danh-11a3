@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { layThuHienTai } from "../thoiKhoaBieu";
+import { playSuccess } from "../utils/sound";
 
 /* =============================================================
    TAB CAMERA AI
@@ -218,9 +219,10 @@ function TabCameraAI({ students, maLop, onMark }) {
           // ✅ Đánh dấu TRƯỚC khi await để tránh chấm trùng
           markedInSessionRef.current.add(hs.id);
 
-          const res = await onMark(hs.id, t.buoi, t.tiet);
+          const res = await onMark(hs.id, t.buoi, t.tiet, { sound: false });
           if (res?.ok) {
             setSoNhanDien((c) => c + 1);
+            playSuccess();
           }
 
           addLog(

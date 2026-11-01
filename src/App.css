@@ -233,18 +233,79 @@
 
 .floating-icon {
   position: absolute;
+  bottom: -10vh;
   display: block;
-  opacity: 0.14;
+  opacity: 0;
   filter: drop-shadow(0 2px 6px rgba(37, 99, 235, 0.12));
-  animation: floating-icon-drift ease-in-out infinite alternate;
+  animation: floating-icon-float-up linear infinite;
 }
 
-@keyframes floating-icon-drift {
-  from {
-    transform: translate3d(-8px, -10px, 0) rotate(-8deg);
+.skeleton-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.skeleton-dashboard {
+  display: grid;
+  gap: 16px;
+}
+
+.sound-settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 18px 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.sound-settings h4 {
+  margin: 0;
+}
+
+.sound-settings p {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.sound-settings-toggle {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.sound-settings-toggle input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--primary);
+}
+
+@keyframes floating-icon-float-up {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+    opacity: 0;
   }
-  to {
-    transform: translate3d(12px, 12px, 0) rotate(9deg);
+  10% {
+    opacity: 0.12;
+  }
+  50% {
+    transform: translate3d(18px, -55vh, 0) rotate(180deg);
+    opacity: 0.12;
+  }
+  90% {
+    opacity: 0.12;
+  }
+  100% {
+    transform: translate3d(-12px, -110vh, 0) rotate(360deg);
+    opacity: 0;
   }
 }
 
@@ -821,6 +882,10 @@ p {
 }
 
 @media (max-width: 768px) {
+  .skeleton-card-grid {
+    grid-template-columns: 1fr;
+  }
+
   body {
     padding: 16px 0;
   }
@@ -3652,6 +3717,152 @@ textarea:focus-visible {
     max-height: none;
     resize: none;
     border-radius: 16px;
+  }
+}
+
+@media (max-width: 767px) {
+  body {
+    padding-bottom: 0;
+  }
+
+  .container {
+    margin-bottom: 0;
+    padding-bottom: calc(84px + env(safe-area-inset-bottom));
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .container:has(.nhom-tabs) {
+    animation: none;
+  }
+
+  .nhom-tabs {
+    position: fixed;
+    z-index: 800;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: space-around;
+    gap: 2px;
+    width: 100%;
+    margin: 0;
+    padding: 6px 6px max(6px, env(safe-area-inset-bottom));
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    border-radius: 14px 14px 0 0;
+    background: rgba(255, 255, 255, 0.97);
+    box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.12);
+  }
+
+  .nhom-tabs button {
+    display: flex;
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 54px;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 2px;
+    font-size: 10px;
+    line-height: 1.2;
+    text-align: center;
+    white-space: normal;
+  }
+
+  .nhom-tabs button.active {
+    color: var(--primary-dark);
+    background: var(--primary-light);
+  }
+
+  button,
+  .caidat-btn,
+  .tabcon button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .nhom-tabs button {
+    min-width: 0;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  h1 {
+    font-size: clamp(18px, 5vw, 28px);
+  }
+
+  .modal-sua {
+    align-items: flex-end;
+    padding: 8px 8px max(8px, env(safe-area-inset-bottom));
+  }
+
+  .modal-sua-box {
+    max-height: min(85dvh, 700px);
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+    scroll-padding-bottom: max(20px, env(safe-area-inset-bottom));
+    animation: modal-sheet-enter 220ms ease-out;
+  }
+
+  .attendance-table {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .attendance-table thead th {
+    position: sticky;
+    z-index: 2;
+    top: 0;
+    background: var(--surface);
+  }
+
+  .attendance-table--teacher th:nth-child(-n + 2),
+  .attendance-table--teacher td:nth-child(-n + 2),
+  .attendance-table--guest th:first-child,
+  .attendance-table--guest td:first-child {
+    display: none;
+  }
+
+  .attendance-table--teacher th:nth-child(3),
+  .attendance-table--teacher td:nth-child(3),
+  .attendance-table--guest th:nth-child(2),
+  .attendance-table--guest td:nth-child(2) {
+    position: sticky;
+    z-index: 1;
+    left: 0;
+    background: var(--surface);
+  }
+
+  .chatbot-nut-noi {
+    bottom: calc(78px + env(safe-area-inset-bottom));
+  }
+
+  .pwa-install-btn {
+    bottom: calc(78px + env(safe-area-inset-bottom));
+  }
+
+  body:has(.modal-sua, .modal-anh, .confirm-backdrop) .nhom-tabs {
+    display: none;
+  }
+}
+
+@keyframes modal-sheet-enter {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-sua-box {
+    animation: none;
   }
 }
 

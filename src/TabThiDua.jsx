@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import ModalPortal from "./ModalPortal";
-import { EmptyState, SkeletonLoading } from "./UxComponents";
-import { useUx } from "./UxContext";
+import { EmptyState } from "./UxComponents";
+import { confirmToast } from "./utils/toast";
 import { tinhDiemTruTuDong } from "./tinhDiemTuDong";
 import {
   getNgayNghi,
@@ -10,6 +10,7 @@ import {
 } from "./ngayNghiStorage";
 import { xuatExcelTuan, xuatExcelThang } from "./xuatExcelThiDua";
 import { useStudents } from "./StudentsContext";
+import SkeletonCard from "./components/skeleton/SkeletonCard";
 import {
   DANH_SACH_VI_PHAM,
   DANH_SACH_KHEN_THUONG,
@@ -30,7 +31,6 @@ import "./App.css";
 
 export default function TabThiDua({ isAdmin = false }) {
   const { students, maLop } = useStudents();
-  const { confirm } = useUx();
   const [tuan, setTuan] = useState(layTuanISO(new Date()));
   const [tab, setTab] = useState("lop");
   const [duLieu, setDuLieu] = useState(null);
@@ -141,7 +141,7 @@ export default function TabThiDua({ isAdmin = false }) {
 
   async function handleXoa(doiTuong, index, loai) {
     if (!isAdmin) return;
-    if (!(await confirm({ message: "Xóa mục này?", destructive: true }))) return;
+    if (!(await confirmToast({ message: "Xóa mục này?", destructive: true }))) return;
     try {
       if (doiTuong === "lop") {
         await xoaCuaLop(maLop, tuan, index, loai);
@@ -208,7 +208,7 @@ export default function TabThiDua({ isAdmin = false }) {
 
   async function handleXoaNgayNghi(ngay, buoi) {
     if (!isAdmin) return;
-    if (!(await confirm({
+    if (!(await confirmToast({
       message: `Bỏ đánh dấu nghỉ ngày ${ngay} buổi ${
           buoi === "sang" ? "sáng" : "chiều"
         }?`,
@@ -242,7 +242,13 @@ export default function TabThiDua({ isAdmin = false }) {
   }
 
   if (loading || !duLieu) {
-    return <SkeletonLoading variant="table" rows={6} />;
+    return (
+      <div className="skeleton-card-grid" role="status" aria-label="Đang tải thi đua">
+        <SkeletonCard ariaHidden />
+        <SkeletonCard ariaHidden />
+        <SkeletonCard ariaHidden />
+      </div>
+    );
   }
 
   const lopData = duLieu.lop || {

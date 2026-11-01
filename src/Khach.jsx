@@ -5,18 +5,22 @@ import { getAttendanceByMonth } from "./storage";
 import { layNgayHomNay } from "./thoiKhoaBieu";
 import News from "./News";
 import { SkeletonLoading } from "./UxComponents";
+import SkeletonCard from "./components/skeleton/SkeletonCard";
+import SkeletonTable from "./components/skeleton/SkeletonTable";
 import "./App.css";
 
 const TabThiDua = lazy(() => import("./TabThiDua"));
 
 export default function Khach() {
-  const { students, maLop, danhSachLop, chonLop } = useStudents();
+  const { students, loading: loadingStudents, maLop, danhSachLop, chonLop } = useStudents();
   const [tab, setTab] = useState("bang");
   const [attendance, setAttendance] = useState({});
+  const [loadingAttendance, setLoadingAttendance] = useState(true);
   const [today, setToday] = useState(() => layNgayHomNay());
   const [buoiDangChon, setBuoiDangChon] = useState("sang");
 
   const loadData = useCallback(async () => {
+    setLoadingAttendance(true);
     try {
       const d = layNgayHomNay();
       setToday(d);
@@ -24,6 +28,8 @@ export default function Khach() {
       setAttendance(data[d] || {});
     } catch (err) {
       console.error("Lỗi tải dữ liệu:", err);
+    } finally {
+      setLoadingAttendance(false);
     }
   }, []);
 
@@ -33,6 +39,15 @@ export default function Khach() {
   }, [loadData, maLop]);
 
   const chuaCoLop = !maLop || students.length === 0;
+
+  if (loadingStudents) {
+    return (
+      <div className="container skeleton-dashboard" role="status" aria-label="Đang tải trang khách">
+        <SkeletonTable rows={8} cols={4} ariaHidden />
+        <SkeletonCard ariaHidden />
+      </div>
+    );
+  }
 
   return (
     <div className="container">
@@ -129,7 +144,15 @@ export default function Khach() {
           </div>
 
           {tab === "thidua" && (
-            <Suspense fallback={<SkeletonLoading />}>
+            <Suspense
+              fallback={
+                <div className="skeleton-card-grid" role="status" aria-label="Đang tải thi đua">
+                  <SkeletonCard ariaHidden />
+                  <SkeletonCard ariaHidden />
+                  <SkeletonCard ariaHidden />
+                </div>
+              }
+            >
               <TabThiDua />
             </Suspense>
           )}
@@ -187,6 +210,7 @@ export default function Khach() {
                 attendance={attendance}
                 today={today}
                 buoi={buoiDangChon}
+                loading={loadingAttendance}
               />
             </>
           )}
@@ -204,7 +228,16 @@ export default function Khach() {
 }
 
 /* ---------- BẢNG ĐIỂM DANH CHO KHÁCH ---------- */
-function TabBangKhach({ students, attendance, today, buoi }) {
+function TabBangKhach({ students, attendance, today, buoi, loading }) {
+  if (loading) {
+    return (
+      <div className="skeleton-dashboard" role="status" aria-label="Đang tải điểm danh">
+        <SkeletonCard ariaHidden />
+        <SkeletonTable rows={8} cols={4} ariaHidden />
+      </div>
+    );
+  }
+
   const dem = { "Đúng giờ": 0, "Đi trễ": 0, "Vắng": 0 };
   students.forEach((s) => {
     const a = (attendance[s.id] || {})[buoi];
@@ -238,8 +271,8 @@ function TabBangKhach({ students, attendance, today, buoi }) {
         </div>
       </div>
 
-      <div className="table-responsive" role="region" aria-label="Bảng điểm danh" tabIndex={0}>
-        <table>
+      <div className="table-responsive attendance-table-wrap" role="region" aria-label="Bảng điểm danh" tabIndex={0}>
+        <table className="attendance-table attendance-table--guest">
           <thead>
             <tr>
               <th>STT</th>

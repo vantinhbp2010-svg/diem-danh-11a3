@@ -4,7 +4,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { OfflineBanner } from "./UxComponents";
 import { UxContext } from "./UxContext";
 import "./ux.css";
@@ -14,6 +14,7 @@ export default function ToastProvider({ children }) {
   const [confirmation, setConfirmation] = useState(null);
   const confirmResolver = useRef(null);
   const toastTimers = useRef(new Map());
+  const reduceMotion = useReducedMotion();
 
   const dismissToast = useCallback((id) => {
     const timer = toastTimers.current.get(id);
@@ -23,20 +24,37 @@ export default function ToastProvider({ children }) {
   }, []);
 
   const showToast = useCallback(
-    ({ message, type = "success", duration = 3000, action }) => {
-      const id = `${Date.now()}-${Math.random()}`;
-      setToasts((current) => [...current, { id, message, type, action }]);
-      if (duration > 0) {
+    ({
+      id = `${Date.now()}-${Math.random()}`,
+      message,
+      type = "success",
+      duration,
+      action,
+    }) => {
+      const toastDuration = duration ?? (type === "error" ? 5000 : 3000);
+      const existingTimer = toastTimers.current.get(id);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+        toastTimers.current.delete(id);
+      }
+      setToasts((current) => {
+        const toast = { id, message, type, action };
+        return current.some((item) => item.id === id)
+          ? current.map((item) => (item.id === id ? toast : item))
+          : [...current, toast];
+      });
+      if (toastDuration > 0) {
         toastTimers.current.set(
           id,
-          setTimeout(() => dismissToast(id), duration)
+          setTimeout(() => dismissToast(id), toastDuration)
         );
       }
+      return id;
     },
     [dismissToast]
   );
 
-  const confirm = useCallback((options) => {
+  const requestConfirmation = useCallback((options) => {
     if (confirmResolver.current) confirmResolver.current(false);
     setConfirmation({
       title: options.title || "Xác nhận",
@@ -58,9 +76,17 @@ export default function ToastProvider({ children }) {
 
   useEffect(() => {
     const handleToastEvent = (event) => showToast(event.detail || {});
+    const handleConfirmEvent = (event) => {
+      const { message, options = {}, resolve } = event.detail || {};
+      requestConfirmation({ ...options, message }).then(resolve);
+    };
     window.addEventListener("app:toast", handleToastEvent);
-    return () => window.removeEventListener("app:toast", handleToastEvent);
-  }, [showToast]);
+    window.addEventListener("app:confirm", handleConfirmEvent);
+    return () => {
+      window.removeEventListener("app:toast", handleToastEvent);
+      window.removeEventListener("app:confirm", handleConfirmEvent);
+    };
+  }, [requestConfirmation, showToast]);
 
   useEffect(() => () => {
     toastTimers.current.forEach(clearTimeout);
@@ -69,7 +95,7 @@ export default function ToastProvider({ children }) {
   }, []);
 
   return (
-    <UxContext.Provider value={{ showToast, confirm }}>
+    <UxContext.Provider value={{ showToast }}>
       <OfflineBanner />
       {children}
       <div className="toast-stack" aria-live="polite" aria-atomic="false">
@@ -79,10 +105,10 @@ export default function ToastProvider({ children }) {
               key={toast.id}
               className={`toast toast-${toast.type}`}
               role={toast.type === "error" ? "alert" : "status"}
-              initial={{ opacity: 0, x: 32 }}
+              initial={reduceMotion ? false : { opacity: 0, x: 32 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 24 }}
-              transition={{ duration: 0.2 }}
+              transition={{ duration: reduceMotion ? 0 : 0.2 }}
             >
               <span>{toast.message}</span>
               {toast.action && (
@@ -113,7 +139,7 @@ export default function ToastProvider({ children }) {
         {confirmation && (
           <motion.div
             className="confirm-backdrop"
-            initial={{ opacity: 0 }}
+            initial={reduceMotion ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onMouseDown={(event) => {
@@ -126,7 +152,7 @@ export default function ToastProvider({ children }) {
               aria-modal="true"
               aria-labelledby="confirm-title"
               aria-describedby="confirm-message"
-              initial={{ opacity: 0, y: 16, scale: 0.96 }}
+              initial={reduceMotion ? false : { opacity: 0, y: 16, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12, scale: 0.96 }}
             >

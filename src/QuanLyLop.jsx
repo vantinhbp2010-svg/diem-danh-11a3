@@ -2,12 +2,11 @@ import { useState, useRef } from "react";
 import { useStudents } from "./StudentsContext";
 import ModalPortal from "./ModalPortal";
 import { saveDSLop, xoaLop } from "./lopStorage";
-import { useUx } from "./UxContext";
+import { confirmToast } from "./utils/toast";
 import { SkeletonLoading } from "./UxComponents";
 import "./App.css";
 
 export default function QuanLyLop() {
-  const { confirm } = useUx();
   const {
     students,
     reload,
@@ -150,7 +149,7 @@ export default function QuanLyLop() {
   }
 
   async function handleXoaHS(hs) {
-    if (!(await confirm({
+    if (!(await confirmToast({
       message: `XÓA học sinh khỏi lớp?\n\n${hs.name} (${hs.id})\n\n` +
         `Lưu ý: Chỉ xóa khỏi danh sách lớp. Điểm danh cũ vẫn còn.`,
       destructive: true,
@@ -204,7 +203,7 @@ export default function QuanLyLop() {
       setMsg("❌ Chưa có lớp nào");
       return;
     }
-    if (!(await confirm({
+    if (!(await confirmToast({
       message: `Xóa lớp "${maLop}"?\n\nToàn bộ học sinh của lớp này sẽ bị xóa khỏi danh sách.`,
       destructive: true,
     })))

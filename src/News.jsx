@@ -7,12 +7,11 @@ import {
   xoaTin,
   uploadAnh,
 } from "./newsStorage";
-import { useUx } from "./UxContext";
+import { confirmToast } from "./utils/toast";
 import { EmptyState, SkeletonLoading } from "./UxComponents";
 import "./App.css";
 
 export default function News({ laGiaoVien, tenNguoiDung }) {
-  const { confirm } = useUx();
   const [danhSach, setDanhSach] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("hienthi");
@@ -164,13 +163,13 @@ export default function News({ laGiaoVien, tenNguoiDung }) {
   }
 
   async function handleDuyet(id) {
-    if (!(await confirm({ message: "Duyệt tin này?" }))) return;
+    if (!(await confirmToast({ message: "Duyệt tin này?" }))) return;
     await duyetTin(id);
     await loadData();
   }
 
   async function handleXoa(id) {
-    if (!(await confirm({
+    if (!(await confirmToast({
       message: "Xóa tin này? Không thể hoàn tác!",
       destructive: true,
     }))) return;

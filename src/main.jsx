@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { registerSW } from "virtual:pwa-register";
 import ToastProvider from "./ToastProvider";
+import { unlockAudio } from "./utils/sound";
 import "./index.css";
 const App = lazy(() => import("./App.jsx"));
 const Login = lazy(() => import("./Login.jsx"));
@@ -11,6 +12,30 @@ const Khach = lazy(() => import("./Khach.jsx"));
 const ProtectedRoute = lazy(() => import("./ProtectedRoute.jsx"));
 const ChatBot = lazy(() => import("./ChatBot.jsx"));
 const StudentsRoute = lazy(() => import("./StudentsRoute.jsx"));
+
+function AudioUnlocker() {
+  useEffect(() => {
+    const handleFirstInteraction = () => {
+      window.removeEventListener("pointerdown", handleFirstInteraction);
+      window.removeEventListener("keydown", handleFirstInteraction);
+      unlockAudio().catch((error) => {
+        console.warn("Không thể khởi tạo âm thanh:", error);
+      });
+    };
+
+    window.addEventListener("pointerdown", handleFirstInteraction, {
+      once: true,
+      passive: true,
+    });
+    window.addEventListener("keydown", handleFirstInteraction, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", handleFirstInteraction);
+      window.removeEventListener("keydown", handleFirstInteraction);
+    };
+  }, []);
+
+  return null;
+}
 
 function PWABanner() {
   const [coTheCai, setCoTheCai] = useState(false);
@@ -56,6 +81,7 @@ createRoot(document.getElementById("root")).render(
   <StrictMode>
     <ToastProvider>
       <BrowserRouter>
+        <AudioUnlocker />
         <Suspense
           fallback={
             <div className="app-loading" role="status">

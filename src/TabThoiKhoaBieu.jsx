@@ -2,11 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 import { useStudents } from "./StudentsContext";
 import { getTKB, saveTKB, xoaTKB } from "./tkbStorage";
 import { GIO_SANG, GIO_CHIEU, TEN_THU, tkbDayDu } from "./thoiKhoaBieu";
-import { useUx } from "./UxContext";
+import { confirmToast } from "./utils/toast";
 import "./App.css";
 
 export default function TabThoiKhoaBieu({ maLop }) {
-  const { confirm } = useUx();
   const { students } = useStudents();
   const [tkb, setTkb] = useState(null);
   const [thuDangChon, setThuDangChon] = useState("thu2");
@@ -81,7 +80,7 @@ export default function TabThoiKhoaBieu({ maLop }) {
 
   async function handleXoa() {
     if (!maLop) return;
-    if (!(await confirm({
+    if (!(await confirmToast({
       message: `Xóa TKB lớp ${maLop}? Sau khi xóa, camera sẽ KHÔNG chấm điểm danh.`,
       destructive: true,
     })))

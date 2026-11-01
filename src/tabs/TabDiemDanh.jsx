@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import ModalPortal from "../ModalPortal";
 import { layGioPhutHienTai, layThuHienTai } from "../thoiKhoaBieu";
 import AnimatedNumber from "./AnimatedNumber";
+import SkeletonTable from "../components/skeleton/SkeletonTable";
 
 /* =============================================================
    TAB ĐIỂM DANH
@@ -17,6 +18,7 @@ function TabDiemDanh({
   onXoaTatCa,
   onSua,
   onXacNhan,
+  loading = false,
 }) {
   const [tietHienTai, setTietHienTai] = useState(null);
   const [tietThuCong, setTietThuCong] = useState(1);
@@ -85,6 +87,10 @@ function TabDiemDanh({
   }, [students, attendance, buoiHienTai, tiet, coTiet]);
 
   const tenBuoi = buoiHienTai === "sang" ? "Sáng" : "Chiều";
+
+  if (loading) {
+    return <SkeletonTable rows={8} cols={5} />;
+  }
 
   function moSuaModal(studentId) {
     const hs = students.find((s) => s.id === studentId);
@@ -249,8 +255,8 @@ function TabDiemDanh({
         )}
       </div>
 
-      <div className="table-responsive" role="region" aria-label="Bảng điểm danh" tabIndex={0}>
-        <table>
+      <div className="table-responsive attendance-table-wrap" role="region" aria-label="Bảng điểm danh" tabIndex={0}>
+        <table className="attendance-table attendance-table--teacher">
           <thead>
             <tr>
               <th>STT</th>
