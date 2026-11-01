@@ -913,7 +913,7 @@ export default function App() {
               transition={{ duration: 0.22 }}
             >
               <Suspense fallback={<SkeletonLoading />}>
-                <TabThiDua />
+                <TabThiDua isAdmin={isAdmin} />
               </Suspense>
             </motion.div>
           )}
@@ -1306,7 +1306,7 @@ export default function App() {
             transition={{ duration: 0.22 }}
           >
             <Suspense fallback={<SkeletonLoading />}>
-              <TabThiDua />
+              <TabThiDua isAdmin={isAdmin} />
             </Suspense>
           </motion.div>
         )}

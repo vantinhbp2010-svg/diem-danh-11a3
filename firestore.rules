@@ -74,6 +74,8 @@ service cloud.firestore {
     match /diemdanh/{documentId} {
       allow read: if isTeacher()
         || documentId == 'thongBaoToanTruong'
+        || documentId == 'thiDua'
+        || documentId == 'ngayNghi'
         || documentId.matches(
           '^diemdanh_thang_[0-9]{4}-(0[1-9]|1[0-2])$'
         );
@@ -82,7 +84,13 @@ service cloud.firestore {
         && isAdmin()
         && validAnnouncement()
       ) || (
+        documentId in ['thiDua', 'ngayNghi']
+        && isAdmin()
+        && validDataEnvelope()
+      ) || (
         documentId != 'thongBaoToanTruong'
+        && documentId != 'thiDua'
+        && documentId != 'ngayNghi'
         && isTeacher()
         && validDataEnvelope()
       );

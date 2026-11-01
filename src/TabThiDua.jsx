@@ -28,7 +28,7 @@ import {
 } from "./thiDuaStorage";
 import "./App.css";
 
-export default function TabThiDua() {
+export default function TabThiDua({ isAdmin = false }) {
   const { students, maLop } = useStudents();
   const { confirm } = useUx();
   const [tuan, setTuan] = useState(layTuanISO(new Date()));
@@ -95,6 +95,7 @@ export default function TabThiDua() {
   }
 
   async function handleThem() {
+    if (!isAdmin) return;
     if (!chonMa) {
       setMsg("❌ Chưa chọn loại");
       return;
@@ -139,6 +140,7 @@ export default function TabThiDua() {
   }
 
   async function handleXoa(doiTuong, index, loai) {
+    if (!isAdmin) return;
     if (!(await confirm({ message: "Xóa mục này?", destructive: true }))) return;
     try {
       if (doiTuong === "lop") {
@@ -179,6 +181,7 @@ export default function TabThiDua() {
 
   // ============ THÊM NGÀY NGHỈ ============
   async function handleThemNgayNghi() {
+    if (!isAdmin) return;
     if (!ngayNghiMoi) {
       setMsg("❌ Chưa chọn ngày");
       return;
@@ -204,6 +207,7 @@ export default function TabThiDua() {
   }
 
   async function handleXoaNgayNghi(ngay, buoi) {
+    if (!isAdmin) return;
     if (!(await confirm({
       message: `Bỏ đánh dấu nghỉ ngày ${ngay} buổi ${
           buoi === "sang" ? "sáng" : "chiều"
@@ -409,30 +413,34 @@ export default function TabThiDua() {
               flexWrap: "wrap",
             }}
           >
-            <button
-              onClick={() => {
-                setModal({ loai: "viPham", doiTuong: "lop" });
-                setChonMa("");
-              }}
-              style={{ background: "#dc2626", flex: 1, minWidth: 150 }}
-            >
-              ➖ Thêm vi phạm lớp
-            </button>
-            <button
-              onClick={() => {
-                setModal({ loai: "khenThuong", doiTuong: "lop" });
-                setChonMa("");
-              }}
-              style={{ background: "#10b981", flex: 1, minWidth: 150 }}
-            >
-              ➕ Thêm khen thưởng lớp
-            </button>
-            <button
-              onClick={() => setModalNgayNghi(true)}
-              style={{ background: "#f59e0b", flex: 1, minWidth: 150 }}
-            >
-              🚫 Ngày không tính điểm
-            </button>
+            {isAdmin && (
+              <>
+                <button
+                  onClick={() => {
+                    setModal({ loai: "viPham", doiTuong: "lop" });
+                    setChonMa("");
+                  }}
+                  style={{ background: "#dc2626", flex: 1, minWidth: 150 }}
+                >
+                  ➖ Thêm vi phạm lớp
+                </button>
+                <button
+                  onClick={() => {
+                    setModal({ loai: "khenThuong", doiTuong: "lop" });
+                    setChonMa("");
+                  }}
+                  style={{ background: "#10b981", flex: 1, minWidth: 150 }}
+                >
+                  ➕ Thêm khen thưởng lớp
+                </button>
+                <button
+                  onClick={() => setModalNgayNghi(true)}
+                  style={{ background: "#f59e0b", flex: 1, minWidth: 150 }}
+                >
+                  🚫 Ngày không tính điểm
+                </button>
+              </>
+            )}
             <button
               onClick={handleXuatTuan}
               style={{ background: "#8b5cf6", flex: 1, minWidth: 150 }}
@@ -492,16 +500,18 @@ export default function TabThiDua() {
                             ? "🌆 Chiều"
                             : buoi}
                         </span>
-                        <button
-                          onClick={() => handleXoaNgayNghi(ngay, buoi)}
-                          style={{
-                            background: "#e74c3c",
-                            padding: "3px 8px",
-                            fontSize: 11,
-                          }}
-                        >
-                          🗑️
-                        </button>
+                        {isAdmin && (
+                          <button
+                            onClick={() => handleXoaNgayNghi(ngay, buoi)}
+                            style={{
+                              background: "#e74c3c",
+                              padding: "3px 8px",
+                              fontSize: 11,
+                            }}
+                          >
+                            🗑️
+                          </button>
+                        )}
                       </div>
                     ))
                   )}
@@ -537,16 +547,18 @@ export default function TabThiDua() {
                       {v.ngay} {v.ghiChu && `— ${v.ghiChu}`}
                     </small>
                   </span>
-                  <button
-                    onClick={() => handleXoa("lop", i, "viPham")}
-                    style={{
-                      background: "#e74c3c",
-                      padding: "3px 8px",
-                      fontSize: 12,
-                    }}
-                  >
-                    🗑️
-                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={() => handleXoa("lop", i, "viPham")}
+                      style={{
+                        background: "#e74c3c",
+                        padding: "3px 8px",
+                        fontSize: 12,
+                      }}
+                    >
+                      🗑️
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
@@ -573,16 +585,18 @@ export default function TabThiDua() {
                       {k.ngay} {k.ghiChu && `— ${k.ghiChu}`}
                     </small>
                   </span>
-                  <button
-                    onClick={() => handleXoa("lop", i, "khenThuong")}
-                    style={{
-                      background: "#e74c3c",
-                      padding: "3px 8px",
-                      fontSize: 12,
-                    }}
-                  >
-                    🗑️
-                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={() => handleXoa("lop", i, "khenThuong")}
+                      style={{
+                        background: "#e74c3c",
+                        padding: "3px 8px",
+                        fontSize: 12,
+                      }}
+                    >
+                      🗑️
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
@@ -674,26 +688,28 @@ export default function TabThiDua() {
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
-            <button
-              onClick={() => {
-                setModal({ loai: "viPham", doiTuong: "caNhan" });
-                setChonMa("");
-              }}
-              style={{ background: "#dc2626", flex: 1 }}
-            >
-              ➖ Thêm vi phạm
-            </button>
-            <button
-              onClick={() => {
-                setModal({ loai: "khenThuong", doiTuong: "caNhan" });
-                setChonMa("");
-              }}
-              style={{ background: "#10b981", flex: 1 }}
-            >
-              ➕ Thêm khen thưởng
-            </button>
-          </div>
+          {isAdmin && (
+            <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+              <button
+                onClick={() => {
+                  setModal({ loai: "viPham", doiTuong: "caNhan" });
+                  setChonMa("");
+                }}
+                style={{ background: "#dc2626", flex: 1 }}
+              >
+                ➖ Thêm vi phạm
+              </button>
+              <button
+                onClick={() => {
+                  setModal({ loai: "khenThuong", doiTuong: "caNhan" });
+                  setChonMa("");
+                }}
+                style={{ background: "#10b981", flex: 1 }}
+              >
+                ➕ Thêm khen thưởng
+              </button>
+            </div>
+          )}
 
           <h4>📋 Vi phạm do giáo viên nhập</h4>
           <p
@@ -723,16 +739,18 @@ export default function TabThiDua() {
                       {v.ngay} {v.ghiChu && `— ${v.ghiChu}`}
                     </small>
                   </span>
-                  <button
-                    onClick={() => handleXoa("caNhan", i, "viPham")}
-                    style={{
-                      background: "#e74c3c",
-                      padding: "3px 8px",
-                      fontSize: 12,
-                    }}
-                  >
-                    🗑️
-                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={() => handleXoa("caNhan", i, "viPham")}
+                      style={{
+                        background: "#e74c3c",
+                        padding: "3px 8px",
+                        fontSize: 12,
+                      }}
+                    >
+                      🗑️
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
@@ -759,16 +777,18 @@ export default function TabThiDua() {
                       {k.ngay} {k.ghiChu && `— ${k.ghiChu}`}
                     </small>
                   </span>
-                  <button
-                    onClick={() => handleXoa("caNhan", i, "khenThuong")}
-                    style={{
-                      background: "#e74c3c",
-                      padding: "3px 8px",
-                      fontSize: 12,
-                    }}
-                  >
-                    🗑️
-                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={() => handleXoa("caNhan", i, "khenThuong")}
+                      style={{
+                        background: "#e74c3c",
+                        padding: "3px 8px",
+                        fontSize: 12,
+                      }}
+                    >
+                      🗑️
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
@@ -837,7 +857,7 @@ export default function TabThiDua() {
       )}
 
       {/* MODAL NGÀY NGHỈ */}
-      {modalNgayNghi && (
+      {isAdmin && modalNgayNghi && (
         <ModalPortal>
           <div className="modal-sua" onClick={() => setModalNgayNghi(false)}>
             <div className="modal-sua-box" onClick={(e) => e.stopPropagation()}>
@@ -887,7 +907,7 @@ export default function TabThiDua() {
       )}
 
       {/* MODAL THÊM */}
-      {modal && (
+      {isAdmin && modal && (
         <ModalPortal>
           <div className="modal-sua" onClick={() => setModal(null)}>
             <div className="modal-sua-box" onClick={(e) => e.stopPropagation()}>

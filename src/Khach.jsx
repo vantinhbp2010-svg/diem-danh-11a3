@@ -1,10 +1,13 @@
-import { useState, useEffect, useCallback } from "react";
+import { lazy, Suspense, useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useStudents } from "./StudentsContext";
 import { getAttendanceByMonth } from "./storage";
 import { layNgayHomNay } from "./thoiKhoaBieu";
 import News from "./News";
+import { SkeletonLoading } from "./UxComponents";
 import "./App.css";
+
+const TabThiDua = lazy(() => import("./TabThiDua"));
 
 export default function Khach() {
   const { students, maLop, danhSachLop, chonLop } = useStudents();
@@ -112,6 +115,12 @@ export default function Khach() {
           {/* Vẫn xem được bản tin */}
           <div className="tabs">
             <button
+              className={tab === "thidua" ? "active" : ""}
+              onClick={() => setTab("thidua")}
+            >
+              🎯 Thi đua
+            </button>
+            <button
               className={tab === "news" ? "active" : ""}
               onClick={() => setTab("news")}
             >
@@ -119,6 +128,11 @@ export default function Khach() {
             </button>
           </div>
 
+          {tab === "thidua" && (
+            <Suspense fallback={<SkeletonLoading />}>
+              <TabThiDua />
+            </Suspense>
+          )}
           {tab === "news" && <News laGiaoVien={false} tenNguoiDung="" />}
         </>
       ) : (
@@ -135,6 +149,12 @@ export default function Khach() {
               onClick={() => setTab("bang")}
             >
               📋 Xem điểm danh
+            </button>
+            <button
+              className={tab === "thidua" ? "active" : ""}
+              onClick={() => setTab("thidua")}
+            >
+              🎯 Thi đua
             </button>
             <button
               className={tab === "news" ? "active" : ""}
@@ -171,6 +191,11 @@ export default function Khach() {
             </>
           )}
 
+          {tab === "thidua" && (
+            <Suspense fallback={<SkeletonLoading />}>
+              <TabThiDua />
+            </Suspense>
+          )}
           {tab === "news" && <News laGiaoVien={false} tenNguoiDung="" />}
         </>
       )}
