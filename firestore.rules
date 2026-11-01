@@ -9,6 +9,25 @@ service cloud.firestore {
         );
     }
 
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.get('admin', false) == true;
+    }
+
+    function validAnnouncement() {
+      return request.resource.data.keys().hasAll([
+          'isActive', 'noiDung', 'ngay'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'isActive', 'noiDung', 'ngay'
+        ])
+        && request.resource.data.isActive is bool
+        && request.resource.data.noiDung is string
+        && request.resource.data.noiDung.size() <= 1000
+        && request.resource.data.ngay is string
+        && request.resource.data.ngay.size() <= 40;
+    }
+
     function validDataEnvelope() {
       return request.resource.data.keys().hasOnly(['data'])
         && request.resource.data.data is map;
@@ -54,10 +73,19 @@ service cloud.firestore {
 
     match /diemdanh/{documentId} {
       allow read: if isTeacher()
+        || documentId == 'thongBaoToanTruong'
         || documentId.matches(
           '^diemdanh_thang_[0-9]{4}-(0[1-9]|1[0-2])$'
         );
-      allow create, update: if isTeacher() && validDataEnvelope();
+      allow create, update: if (
+        documentId == 'thongBaoToanTruong'
+        && isAdmin()
+        && validAnnouncement()
+      ) || (
+        documentId != 'thongBaoToanTruong'
+        && isTeacher()
+        && validDataEnvelope()
+      );
       allow delete: if false;
     }
 

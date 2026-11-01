@@ -95,6 +95,7 @@ const TabLichSu = lazy(() => import("./tabs/TabLichSu"));
 const TabThongKe = lazy(() => import("./tabs/TabThongKe"));
 const TabDangKyMat = lazy(() => import("./tabs/TabDangKyMat"));
 const TabLichTrongDai = lazy(() => import("./TabLichTrongDai"));
+const QuanLyThongBao = lazy(() => import("./QuanLyThongBao"));
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -939,6 +940,11 @@ export default function App() {
                   </Suspense>
                 </ErrorBoundary>
               )}
+              {isAdmin && (
+                <Suspense fallback={<SkeletonLoading />}>
+                  <QuanLyThongBao />
+                </Suspense>
+              )}
               <div className="caidat-grid">
                 <button onClick={handleLogout} className="caidat-btn">
                   🚪 Đăng xuất
@@ -1326,6 +1332,11 @@ export default function App() {
                   <TabQuanLyTaiKhoan />
                 </Suspense>
               </ErrorBoundary>
+            )}
+            {isAdmin && (
+              <Suspense fallback={<SkeletonLoading />}>
+                <QuanLyThongBao />
+              </Suspense>
             )}
             <div className="caidat-grid">
               <button onClick={handleBackupFirebase} className="caidat-btn">
