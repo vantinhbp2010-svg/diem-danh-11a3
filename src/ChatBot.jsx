@@ -1,10 +1,10 @@
-import { lazy, Suspense, useState, useRef, useEffect } from "react";
+import { lazy, memo, Suspense, useState, useRef, useEffect } from "react";
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import { hoiChatBot, resetHistory } from "./groq";
 import { useUx } from "./UxContext";
 import "./App.css";
 
-const ChatMessage = lazy(() => import("./ChatMessage"));
+const ChatMessage = memo(lazy(() => import("./ChatMessage")));
 
 export default function ChatBot() {
   const { confirm } = useUx();

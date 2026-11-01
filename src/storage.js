@@ -16,6 +16,24 @@ import {
   TKB_CHIEU,
 } from "./thoiKhoaBieu";
 
+const ATTENDANCE_CACHE_TTL_MS = 5_000;
+const attendanceCache = new Map();
+const attendanceRequests = new Map();
+
+function cloneAttendance(data) {
+  return JSON.parse(JSON.stringify(data));
+}
+
+function invalidateAttendanceMonth(month) {
+  attendanceCache.delete(month);
+  attendanceRequests.delete(month);
+}
+
+function invalidateAllAttendance() {
+  attendanceCache.clear();
+  attendanceRequests.clear();
+}
+
 function validateMonth(month) {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
     throw new Error(`Tháng không hợp lệ: ${month}`);
@@ -38,8 +56,37 @@ export async function getAttendance() {
 }
 
 export async function getAttendanceByMonth(month) {
-  const snap = await getDoc(attendanceRef(month));
-  return snap.exists() ? snap.data().data || {} : {};
+  const ref = attendanceRef(month);
+  const cached = attendanceCache.get(month);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cloneAttendance(cached.data);
+  }
+  if (cached) attendanceCache.delete(month);
+
+  let request = attendanceRequests.get(month);
+  if (!request) {
+    request = getDoc(ref).then((snap) =>
+      snap.exists() ? snap.data().data || {} : {}
+    );
+    attendanceRequests.set(month, request);
+  }
+
+  try {
+    const data = await request;
+    if (attendanceRequests.get(month) === request) {
+      attendanceCache.set(month, {
+        data: cloneAttendance(data),
+        expiresAt: Date.now() + ATTENDANCE_CACHE_TTL_MS,
+      });
+      attendanceRequests.delete(month);
+    }
+    return cloneAttendance(data);
+  } catch (error) {
+    if (attendanceRequests.get(month) === request) {
+      attendanceRequests.delete(month);
+    }
+    throw error;
+  }
 }
 
 export async function getAttendanceBetween(startDate, endDate) {
@@ -74,6 +121,11 @@ export async function getAttendanceBetween(startDate, endDate) {
 
 export async function saveAttendance(data, month = layNgayHomNay().slice(0, 7)) {
   await setDoc(attendanceRef(month), { data });
+  attendanceRequests.delete(month);
+  attendanceCache.set(month, {
+    data: cloneAttendance(data),
+    expiresAt: Date.now() + ATTENDANCE_CACHE_TTL_MS,
+  });
 }
 
 export async function removeStudentsFromAttendance(studentIds) {
@@ -105,6 +157,7 @@ export async function clearAllAttendance() {
     (snapshot) =>
       /^diemdanh_thang_\d{4}-(0[1-9]|1[0-2])$/.test(snapshot.id)
   );
+  invalidateAllAttendance();
   await Promise.all(
     monthlyDocs.map((snapshot) =>
       setDoc(attendanceRef(snapshot.id.slice("diemdanh_thang_".length)), {
@@ -113,6 +166,7 @@ export async function clearAllAttendance() {
     )
   );
   await setDoc(doc(db, "diemdanh", "all"), { data: {} });
+  invalidateAllAttendance();
 }
 
 export async function markAttendance(
@@ -148,6 +202,7 @@ export async function markAttendance(
     },
     { merge: true }
   );
+  invalidateAttendanceMonth(month);
 
   return {
     ok: true,

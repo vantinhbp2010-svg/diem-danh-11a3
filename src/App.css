@@ -342,6 +342,187 @@ p {
   box-shadow: var(--shadow-xs), inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
+.lich-trong-dai {
+  display: grid;
+  gap: 20px;
+  padding: clamp(16px, 3vw, 28px);
+  color: var(--text);
+  background:
+    radial-gradient(ellipse at top right, rgba(96, 165, 250, 0.12), transparent 42%),
+    var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.lich-trong-dai-header,
+.lich-trong-dai-section-title,
+.lich-trong-dai-event {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.lich-trong-dai-header-icon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border-radius: 16px;
+  background: rgba(37, 99, 235, 0.1);
+  font-size: 26px;
+}
+
+.lich-trong-dai-header h2,
+.lich-trong-dai-section-title h3 {
+  margin: 0;
+  color: var(--text);
+}
+
+.lich-trong-dai-header p,
+.lich-trong-dai-section-title p {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.lich-trong-dai-today {
+  padding: 16px 18px;
+  border-left: 4px solid #f59e0b;
+  border-radius: 10px;
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.lich-trong-dai-today h3,
+.lich-trong-dai-today p {
+  margin: 0;
+}
+
+.lich-trong-dai-today h3 {
+  margin-bottom: 8px;
+  color: #b45309;
+  font-size: 15px;
+}
+
+.lich-trong-dai-today p {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.lich-trong-dai-upcoming,
+.lich-trong-dai-all {
+  min-width: 0;
+}
+
+.lich-trong-dai-section-title {
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.lich-trong-dai-section-title > span {
+  font-size: 22px;
+}
+
+.lich-trong-dai-cards {
+  display: grid;
+  gap: 10px;
+}
+
+.lich-trong-dai-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.lich-trong-dai-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.lich-trong-dai-date {
+  display: grid;
+  flex: 0 0 64px;
+  min-height: 58px;
+  align-content: center;
+  justify-items: center;
+  border-radius: 10px;
+  background: rgba(37, 99, 235, 0.09);
+  color: var(--primary);
+}
+
+.lich-trong-dai-date strong {
+  font-size: 17px;
+}
+
+.lich-trong-dai-date span,
+.lich-trong-dai-event p {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.lich-trong-dai-event {
+  flex: 1;
+  min-width: 0;
+}
+
+.lich-trong-dai-event-icon {
+  font-size: 22px;
+}
+
+.lich-trong-dai-event h4 {
+  margin: 0;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.lich-trong-dai-event p {
+  margin: 4px 0 0;
+}
+
+.lich-trong-dai-countdown {
+  flex: 0 0 auto;
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.09);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.lich-trong-dai-table-wrap {
+  overflow-x: auto;
+  border-radius: 12px;
+}
+
+.lich-trong-dai-table-wrap table {
+  margin-top: 0;
+}
+
+.lich-trong-dai-table-wrap td:first-child {
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+@media (max-width: 600px) {
+  .lich-trong-dai-card {
+    flex-wrap: wrap;
+  }
+
+  .lich-trong-dai-event {
+    flex-basis: calc(100% - 80px);
+  }
+
+  .lich-trong-dai-countdown {
+    margin-left: 78px;
+  }
+}
+
 /* ============ NEWS TABS ============ */
 .news-tabs {
   display: flex;

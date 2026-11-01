@@ -94,6 +94,7 @@ const TabCameraAI = lazy(() => import("./tabs/TabCameraAI"));
 const TabLichSu = lazy(() => import("./tabs/TabLichSu"));
 const TabThongKe = lazy(() => import("./tabs/TabThongKe"));
 const TabDangKyMat = lazy(() => import("./tabs/TabDangKyMat"));
+const TabLichTrongDai = lazy(() => import("./TabLichTrongDai"));
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -783,7 +784,10 @@ export default function App() {
           </button>
           <button
             className={nhom === "news" ? "active" : ""}
-            onClick={() => setNhom("news")}
+            onClick={() => {
+              setNhom("news");
+              setTabCon("news");
+            }}
           >
             📰 Bản tin
           </button>
@@ -855,9 +859,48 @@ export default function App() {
               exit={{ opacity: 0, x: -24 }}
               transition={{ duration: 0.22 }}
             >
-              <Suspense fallback={<SkeletonLoading />}>
-                <News laGiaoVien={true} tenNguoiDung={user} />
-              </Suspense>
+              <div className="tabcon">
+                <button
+                  className={tabCon === "news" ? "active" : ""}
+                  onClick={() => setTabCon("news")}
+                >
+                  📰 Bản tin
+                </button>
+                <button
+                  className={tabCon === "lich" ? "active" : ""}
+                  onClick={() => setTabCon("lich")}
+                >
+                  📅 Lịch trọng đại
+                </button>
+              </div>
+              <AnimatePresence mode="wait" initial={false}>
+                {tabCon === "news" && (
+                  <motion.div
+                    key="news-content"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.18 }}
+                  >
+                    <Suspense fallback={<SkeletonLoading />}>
+                      <News laGiaoVien={true} tenNguoiDung={user} />
+                    </Suspense>
+                  </motion.div>
+                )}
+                {tabCon === "lich" && (
+                  <motion.div
+                    key="lich-content"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.18 }}
+                  >
+                    <Suspense fallback={<SkeletonLoading />}>
+                      <TabLichTrongDai />
+                    </Suspense>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           )}
           {nhom === "thidua" && (
@@ -979,7 +1022,10 @@ export default function App() {
         </button>
         <button
           className={nhom === "news" ? "active" : ""}
-          onClick={() => setNhom("news")}
+          onClick={() => {
+            setNhom("news");
+            setTabCon("news");
+          }}
         >
           📰 Bản tin
         </button>
@@ -1201,9 +1247,48 @@ export default function App() {
             exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.22 }}
           >
-            <Suspense fallback={<SkeletonLoading />}>
-              <News laGiaoVien={true} tenNguoiDung={user} />
-            </Suspense>
+            <div className="tabcon">
+              <button
+                className={tabCon === "news" ? "active" : ""}
+                onClick={() => setTabCon("news")}
+              >
+                📰 Bản tin
+              </button>
+              <button
+                className={tabCon === "lich" ? "active" : ""}
+                onClick={() => setTabCon("lich")}
+              >
+                📅 Lịch trọng đại
+              </button>
+            </div>
+            <AnimatePresence mode="wait" initial={false}>
+              {tabCon === "news" && (
+                <motion.div
+                  key="news-content"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.18 }}
+                >
+                  <Suspense fallback={<SkeletonLoading />}>
+                    <News laGiaoVien={true} tenNguoiDung={user} />
+                  </Suspense>
+                </motion.div>
+              )}
+              {tabCon === "lich" && (
+                <motion.div
+                  key="lich-content"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.18 }}
+                >
+                  <Suspense fallback={<SkeletonLoading />}>
+                    <TabLichTrongDai />
+                  </Suspense>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         )}
         {nhom === "thidua" && (
