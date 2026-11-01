@@ -45,6 +45,7 @@ export default function BannerThongBao() {
       key: `admin:${adminMsg.ngay || ""}:${adminMsg.noiDung}`,
       kind: "admin",
       icon: "📢",
+      title: "Thông báo từ nhà trường",
       message: adminMsg.noiDung,
     };
   } else if (holidays.length > 0) {
@@ -52,6 +53,7 @@ export default function BannerThongBao() {
       key: `holiday:${homNay.getFullYear()}-${homNay.getMonth()}-${homNay.getDate()}`,
       kind: "holiday",
       icon: holidays.map((event) => event.icon).join(" "),
+      title: "Sự kiện trọng đại",
       message: `Hôm nay là ${holidays.map((event) => event.ten).join(", ")}!`,
     };
   }
@@ -64,17 +66,20 @@ export default function BannerThongBao() {
       role="status"
       aria-live="polite"
     >
-      <p className="banner-thong-bao-message">
-        <span aria-hidden="true">{banner.icon}</span>
-        {banner.message}
-      </p>
+      <span className="banner-thong-bao-icon" aria-hidden="true">
+        {banner.icon}
+      </span>
+      <div className="banner-thong-bao-content">
+        <p className="banner-thong-bao-title">{banner.title}</p>
+        <p className="banner-thong-bao-message">{banner.message}</p>
+      </div>
       <button
         className="banner-thong-bao-close"
         type="button"
         aria-label="Đóng thông báo"
         onClick={() => setDaDongKey(banner.key)}
       >
-        <span aria-hidden="true">✕</span>
+        <span aria-hidden="true">×</span>
       </button>
     </aside>
   );
