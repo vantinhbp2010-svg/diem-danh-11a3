@@ -93,7 +93,7 @@ export default function TabLichTrongDai() {
           </div>
           <span aria-hidden="true">📜</span>
         </div>
-        <div className="lich-trong-dai-table-wrap">
+        <div className="lich-trong-dai-table-wrap table-responsive" role="region" aria-label="Lịch sự kiện" tabIndex={0}>
           <table>
             <thead>
               <tr>

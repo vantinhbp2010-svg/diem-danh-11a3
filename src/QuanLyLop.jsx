@@ -465,7 +465,13 @@ export default function QuanLyLop() {
             </div>
           )}
 
-          <div style={{ maxHeight: 500, overflowY: "auto" }}>
+          <div
+            className="table-responsive"
+            role="region"
+            aria-label="Danh sách học sinh"
+            tabIndex={0}
+            style={{ maxHeight: 500, overflowY: "auto" }}
+          >
             <table>
               <thead>
                 <tr>

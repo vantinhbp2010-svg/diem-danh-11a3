@@ -238,40 +238,42 @@ function TabBangKhach({ students, attendance, today, buoi }) {
         </div>
       </div>
 
-      <table>
-        <thead>
-          <tr>
-            <th>STT</th>
-            <th>Họ tên</th>
-            <th>Trạng thái ({tenBuoi})</th>
-            <th>Giờ vào</th>
-          </tr>
-        </thead>
-        <tbody>
-          {students.map((s, i) => {
-            const a = (attendance[s.id] || {})[buoi];
-            let status = "❌ Vắng";
-            let cls = "vang";
-            if (a) {
-              if (a.status === "Đúng giờ") {
-                status = "✅ Đúng giờ";
-                cls = "dunggio";
-              } else if (a.status === "Đi trễ") {
-                status = "🟡 Đi trễ";
-                cls = "tre";
+      <div className="table-responsive" role="region" aria-label="Bảng điểm danh" tabIndex={0}>
+        <table>
+          <thead>
+            <tr>
+              <th>STT</th>
+              <th>Họ tên</th>
+              <th>Trạng thái ({tenBuoi})</th>
+              <th>Giờ vào</th>
+            </tr>
+          </thead>
+          <tbody>
+            {students.map((s, i) => {
+              const a = (attendance[s.id] || {})[buoi];
+              let status = "❌ Vắng";
+              let cls = "vang";
+              if (a) {
+                if (a.status === "Đúng giờ") {
+                  status = "✅ Đúng giờ";
+                  cls = "dunggio";
+                } else if (a.status === "Đi trễ") {
+                  status = "🟡 Đi trễ";
+                  cls = "tre";
+                }
               }
-            }
-            return (
-              <tr key={s.id} className={cls}>
-                <td>{i + 1}</td>
-                <td>{s.name}</td>
-                <td>{status}</td>
-                <td>{a ? a.time : "—"}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+              return (
+                <tr key={s.id} className={cls}>
+                  <td>{i + 1}</td>
+                  <td>{s.name}</td>
+                  <td>{status}</td>
+                  <td>{a ? a.time : "—"}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </>
   );
 }

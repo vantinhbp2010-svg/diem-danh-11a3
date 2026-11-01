@@ -802,17 +802,18 @@ export default function TabThiDua({ isAdmin = false }) {
           <h3 style={{ textAlign: "center" }}>
             🏆 Bảng xếp hạng {tenTuan(tuan)}
           </h3>
-          <table>
-            <thead>
-              <tr>
-                <th>Hạng</th>
-                <th>Mã HS</th>
-                <th>Họ tên</th>
-                <th style={{ textAlign: "center" }}>Điểm</th>
-                <th style={{ textAlign: "center" }}>Xếp loại</th>
-              </tr>
-            </thead>
-            <tbody>
+          <div className="table-responsive" role="region" aria-label="Bảng xếp hạng thi đua" tabIndex={0}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Hạng</th>
+                  <th>Mã HS</th>
+                  <th>Họ tên</th>
+                  <th style={{ textAlign: "center" }}>Điểm</th>
+                  <th style={{ textAlign: "center" }}>Xếp loại</th>
+                </tr>
+              </thead>
+              <tbody>
               {bxh.map((e, i) => {
                 const xl = xepLoai(e.diem);
                 let medal = "";
@@ -851,8 +852,9 @@ export default function TabThiDua({ isAdmin = false }) {
                   </tr>
                 );
               })}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
         </>
       )}
 

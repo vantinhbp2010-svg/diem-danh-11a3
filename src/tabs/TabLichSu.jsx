@@ -145,17 +145,18 @@ function TabLichSu({
         </div>
       </div>
 
-      <table>
-        <thead>
-          <tr>
-            <th>STT</th>
-            <th>Họ tên</th>
-            <th>Trạng thái</th>
-            <th>Giờ vào</th>
-            <th>Hành động</th>
-          </tr>
-        </thead>
-        <tbody>
+      <div className="table-responsive" role="region" aria-label="Lịch sử điểm danh" tabIndex={0}>
+        <table>
+          <thead>
+            <tr>
+              <th>STT</th>
+              <th>Họ tên</th>
+              <th>Trạng thái</th>
+              <th>Giờ vào</th>
+              <th>Hành động</th>
+            </tr>
+          </thead>
+          <tbody>
           {students.map((s, i) => {
             const a = (attendanceNgay[s.id] || {})[buoi]?.[`tiet${tietXem}`];
             let status = "❌ Vắng";
@@ -205,8 +206,9 @@ function TabLichSu({
               </tr>
             );
           })}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </div>
 
       <AnimatePresence>
         {suaModal && (

@@ -166,7 +166,12 @@ export default function TabQuanLyTaiKhoan() {
         {loading && teachers.length === 0 ? (
           <p role="status">Đang tải danh sách...</p>
         ) : (
-          <div style={{ overflowX: "auto" }}>
+          <div
+            className="table-responsive"
+            role="region"
+            aria-label="Danh sách giáo viên"
+            tabIndex={0}
+          >
             <table>
               <thead>
                 <tr>

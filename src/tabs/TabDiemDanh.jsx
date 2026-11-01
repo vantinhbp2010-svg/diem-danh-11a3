@@ -249,21 +249,22 @@ function TabDiemDanh({
         )}
       </div>
 
-      <table>
-        <thead>
-          <tr>
-            <th>STT</th>
-            <th>Mã HS</th>
-            <th>Họ tên</th>
-            <th>
-              Trạng thái (Tiết {tiet}
-              {!coTiet ? " — trống" : ""})
-            </th>
-            <th>Giờ vào</th>
-            <th>Hành động</th>
-          </tr>
-        </thead>
-        <tbody>
+      <div className="table-responsive" role="region" aria-label="Bảng điểm danh" tabIndex={0}>
+        <table>
+          <thead>
+            <tr>
+              <th>STT</th>
+              <th>Mã HS</th>
+              <th>Họ tên</th>
+              <th>
+                Trạng thái (Tiết {tiet}
+                {!coTiet ? " — trống" : ""})
+              </th>
+              <th>Giờ vào</th>
+              <th>Hành động</th>
+            </tr>
+          </thead>
+          <tbody>
           {students.map((s, i) => {
             const a = (attendance[s.id] || {})[buoiHienTai]?.[`tiet${tiet}`];
             let status = coTiet ? "❌ Vắng" : "📭 Tiết trống";
@@ -380,8 +381,9 @@ function TabDiemDanh({
               </motion.tr>
             );
           })}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </div>
 
       <AnimatePresence>
         {suaModal && (

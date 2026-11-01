@@ -3520,6 +3520,114 @@ textarea:focus-visible {
   to { opacity: 1; }
 }
 
+.table-responsive {
+  width: 100%;
+  min-width: 0;
+  margin-top: 16px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-responsive > table {
+  margin-top: 0;
+}
+
+.lich-trong-dai .table-responsive {
+  margin-top: 0;
+}
+
+@media (max-width: 767px) {
+  .nhom-tabs,
+  .tabcon,
+  .tabs,
+  .news-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .nhom-tabs::-webkit-scrollbar,
+  .tabcon::-webkit-scrollbar,
+  .tabs::-webkit-scrollbar,
+  .news-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nhom-tabs button,
+  .tabcon button,
+  .tabs button,
+  .news-tabs button {
+    flex: 0 0 auto;
+    min-width: max-content;
+  }
+
+  button,
+  .caidat-btn {
+    min-height: 44px;
+  }
+
+  .table-responsive > table {
+    display: table;
+    width: max-content;
+    min-width: 640px;
+    overflow: visible;
+    white-space: nowrap;
+  }
+
+  .table-responsive > table thead {
+    display: table-header-group;
+    width: auto;
+  }
+
+  .table-responsive > table tbody {
+    display: table-row-group;
+    width: auto;
+  }
+
+  .table-responsive td > button {
+    min-height: 44px;
+    margin: 4px;
+  }
+
+  .modal-sua {
+    align-items: flex-end;
+    padding: 8px 8px max(8px, env(safe-area-inset-bottom));
+  }
+
+  .modal-sua-box {
+    max-height: min(90dvh, 700px);
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+    scroll-padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
+}
+
+@media (min-width: 768px) {
+  .modal-sua {
+    align-items: center;
+  }
+}
+
+@media (max-width: 500px) {
+  .chatbot-khung {
+    top: max(10px, env(safe-area-inset-top));
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(10px, env(safe-area-inset-bottom));
+    left: max(10px, env(safe-area-inset-left));
+    width: auto;
+    height: calc(100dvh - max(20px, env(safe-area-inset-top)) - max(20px, env(safe-area-inset-bottom)));
+    min-width: 0;
+    min-height: 0;
+    max-width: none;
+    max-height: none;
+    resize: none;
+    border-radius: 16px;
+  }
+}
+
 @media print {
   body {
     background: white !important;

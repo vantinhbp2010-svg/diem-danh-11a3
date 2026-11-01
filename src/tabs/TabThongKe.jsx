@@ -177,20 +177,21 @@ function TabThongKe({ thangThongKe, duLieuThongKe, onDoiThang }) {
         </select>
       </div>
 
-      <table>
-        <thead>
-          <tr>
-            <th>STT</th>
-            <th>Mã HS</th>
-            <th>Họ tên</th>
-            <th style={{ textAlign: "center" }}>✅ Đúng</th>
-            <th style={{ textAlign: "center" }}>🟡 Trễ</th>
-            <th style={{ textAlign: "center" }}>❌ Vắng</th>
-            <th style={{ textAlign: "center" }}>Tổng</th>
-            <th style={{ textAlign: "center" }}>Tỉ lệ</th>
-          </tr>
-        </thead>
-        <tbody>
+      <div className="table-responsive" role="region" aria-label="Thống kê điểm danh" tabIndex={0}>
+        <table>
+          <thead>
+            <tr>
+              <th>STT</th>
+              <th>Mã HS</th>
+              <th>Họ tên</th>
+              <th style={{ textAlign: "center" }}>✅ Đúng</th>
+              <th style={{ textAlign: "center" }}>🟡 Trễ</th>
+              <th style={{ textAlign: "center" }}>❌ Vắng</th>
+              <th style={{ textAlign: "center" }}>Tổng</th>
+              <th style={{ textAlign: "center" }}>Tỉ lệ</th>
+            </tr>
+          </thead>
+          <tbody>
           {dsSapXep.map((e, i) => {
             const tl = tiLe(e);
             let cls = "vang";
@@ -219,8 +220,9 @@ function TabThongKe({ thangThongKe, duLieuThongKe, onDoiThang }) {
               </tr>
             );
           })}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </div>
 
       {dsNgay.length > 0 && (
         <p style={{ marginTop: 15, fontSize: 13, color: "#94a3b8" }}>
