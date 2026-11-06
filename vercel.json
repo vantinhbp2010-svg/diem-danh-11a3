@@ -5,6 +5,9 @@
     },
     "api/cron-backup.js": {
       "maxDuration": 60
+    },
+    "api/upload-image.js": {
+      "maxDuration": 30
     }
   },
   "crons": [

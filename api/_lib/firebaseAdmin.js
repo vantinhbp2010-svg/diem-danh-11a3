@@ -65,6 +65,37 @@ export async function requireAdmin(req, res) {
   }
 }
 
+export async function requireTeacher(req, res) {
+  const authorization = req.headers.authorization || "";
+  const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
+  if (!token) {
+    res.status(401).json({ error: "Cần đăng nhập để thực hiện thao tác này." });
+    return null;
+  }
+
+  let auth;
+  try {
+    auth = getAdminAuth();
+  } catch (error) {
+    console.error("Khởi tạo Firebase Admin thất bại:", error.code || error.message);
+    res.status(500).json({ error: "Máy chủ chưa được cấu hình xác thực." });
+    return null;
+  }
+
+  try {
+    const decodedToken = await auth.verifyIdToken(token, true);
+    if (decodedToken.teacher !== true && decodedToken.admin !== true) {
+      res.status(403).json({ error: "Chỉ giáo viên mới được thực hiện thao tác này." });
+      return null;
+    }
+    return { auth, decodedToken };
+  } catch (error) {
+    console.error("Xác thực yêu cầu giáo viên thất bại:", error.code || error.message);
+    res.status(401).json({ error: "Phiên đăng nhập không hợp lệ hoặc đã hết hạn." });
+    return null;
+  }
+}
+
 export function getAdminAuthInstance() {
   return getAdminAuth();
 }

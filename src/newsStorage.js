@@ -1,4 +1,4 @@
-import { db } from "./firebase";
+import { auth, db } from "./firebase";
 import {
   doc,
   collection,
@@ -6,48 +6,71 @@ import {
   deleteDoc,
   updateDoc,
   getDocs,
+  query,
+  where,
 } from "firebase/firestore";
 
 const COL = collection(db, "news");
-const IMGBB_KEY = "cb666bfbd86cca03a6552cf77a3d0e55";
 
 /**
  * Upload ảnh lên ImgBB — miễn phí, không cần thẻ
  * Trả về URL ảnh
  */
 export async function uploadAnh(file) {
-  // Chuyển file thành base64
+  if (!file?.type?.startsWith("image/")) {
+    throw new Error("File tải lên không phải ảnh hợp lệ.");
+  }
+
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error("Cần đăng nhập giáo viên để tải ảnh.");
+  }
+  const idToken = await user.getIdToken();
+
   const base64 = await new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result.split(",")[1];
-      resolve(result);
+    reader.onload = (event) => {
+      const result = event.target?.result;
+      if (typeof result !== "string" || !result.includes(",")) {
+        reject(new Error("Không thể đọc dữ liệu ảnh."));
+        return;
+      }
+      resolve(result.slice(result.indexOf(",") + 1));
     };
-    reader.onerror = reject;
+    reader.onerror = () => reject(new Error("Không thể đọc file ảnh."));
     reader.readAsDataURL(file);
   });
 
-  // Gửi lên ImgBB
-  const formData = new FormData();
-  formData.append("key", IMGBB_KEY);
-  formData.append("image", base64);
-
-  const res = await fetch("https://api.imgbb.com/1/upload", {
+  const res = await fetch("/api/upload-image", {
     method: "POST",
-    body: formData,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${idToken}`,
+    },
+    body: JSON.stringify({ image: base64 }),
   });
 
-  const data = await res.json();
-
-  if (!data.success) {
-    throw new Error(data.error?.message || "Upload ảnh thất bại");
+  let data;
+  try {
+    data = await res.json();
+  } catch (error) {
+    throw new Error("Máy chủ trả về phản hồi tải ảnh không hợp lệ.", {
+      cause: error,
+    });
   }
 
-  return data.data.url;
+  if (!res.ok || typeof data.url !== "string") {
+    throw new Error(data.error || "Upload ảnh thất bại.");
+  }
+
+  return data.url;
 }
 
-export async function getAllNews() {
-  const snap = await getDocs(COL);
+export async function getAllNews(includePending = false) {
+  const newsQuery = includePending
+    ? COL
+    : query(COL, where("daDuyet", "==", true));
+  const snap = await getDocs(newsQuery);
   const list = [];
   snap.forEach((d) => {
     list.push({ id: d.id, ...d.data() });
@@ -60,13 +83,13 @@ export async function getAllNews() {
   return list;
 }
 
-export async function addNews({ ten, tieuDe, noiDung, vaiTro, anhUrl }) {
+export async function addNews({ ten, tieuDe, noiDung, anhUrl }) {
   const tin = {
     ten: ten.trim(),
     tieuDe: tieuDe.trim(),
     noiDung: noiDung.trim(),
-    vaiTro: vaiTro || "hocsinh",
-    daDuyet: vaiTro === "giaovien",
+    vaiTro: "giaovien",
+    daDuyet: true,
     ghim: false,
     thoiGian: Date.now(),
     anhUrl: anhUrl || null,
