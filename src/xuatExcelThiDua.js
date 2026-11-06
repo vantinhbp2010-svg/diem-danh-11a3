@@ -2,7 +2,6 @@ import * as XLSX from "xlsx";
 import {
   tenTuan,
   khoangNgayTuan,
-  layKhoangNgayTuanHoc,
   xepLoai,
   DIEM_BAN_DAU,
 } from "./diemThiDua";
@@ -89,6 +88,7 @@ export async function xuatExcelTuan(maLop, tuanCode, students) {
  */
 export async function xuatExcelThang(maLop, tuanCode, students) {
   // Từ tuần hiện tại → xác định các tuần trong cùng tháng
+  const { layKhoangNgayTuanHoc } = await import("./diemThiDua");
   const { start } = layKhoangNgayTuanHoc(tuanCode);
 
   if (!start) {

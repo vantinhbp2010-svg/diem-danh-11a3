@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   getAllNews,
   addNews,
@@ -26,20 +26,21 @@ export default function News({ laGiaoVien, tenNguoiDung }) {
   const [xemAnh, setXemAnh] = useState(null);
   const fileInputRef = useRef(null);
 
-  const loadData = useCallback(async () => {
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  async function loadData() {
     try {
-      const data = await getAllNews(laGiaoVien);
+      setLoading(true);
+      const data = await getAllNews();
       setDanhSach(data);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [laGiaoVien]);
-
-  useEffect(() => {
-    void Promise.resolve().then(loadData);
-  }, [loadData]);
+  }
 
   // Nén ảnh trước khi upload — giảm 3MB → 200KB
   function nenAnh(file, maxWidth = 1200, quality = 0.75) {
@@ -118,10 +119,6 @@ export default function News({ laGiaoVien, tenNguoiDung }) {
   }
 
   async function handleDang() {
-    if (!laGiaoVien) {
-      setThongBao("❌ Chỉ giáo viên mới được đăng bản tin.");
-      return;
-    }
     if (!ten.trim()) return setThongBao("❌ Chưa nhập tên");
     if (!tieuDe.trim()) return setThongBao("❌ Chưa nhập tiêu đề");
     if (!noiDung.trim()) return setThongBao("❌ Chưa nhập nội dung");
@@ -141,10 +138,13 @@ export default function News({ laGiaoVien, tenNguoiDung }) {
         ten,
         tieuDe,
         noiDung,
+        vaiTro: laGiaoVien ? "giaovien" : "hocsinh",
         anhUrl,
       });
 
-      setThongBao("✅ Đã đăng tin");
+      setThongBao(
+        laGiaoVien ? "✅ Đã đăng tin" : "✅ Đã gửi — chờ giáo viên duyệt"
+      );
 
       setTieuDe("");
       setNoiDung("");
@@ -213,14 +213,12 @@ export default function News({ laGiaoVien, tenNguoiDung }) {
             ⏳ Chờ duyệt ({tinChoDuyet.length})
           </button>
         )}
-        {laGiaoVien && (
-          <button
-            className={tab === "dang" ? "active" : ""}
-            onClick={() => setTab("dang")}
-          >
-            ✍️ Đăng tin
-          </button>
-        )}
+        <button
+          className={tab === "dang" ? "active" : ""}
+          onClick={() => setTab("dang")}
+        >
+          ✍️ Đăng tin
+        </button>
       </div>
 
       {thongBao && <div className="msg">{thongBao}</div>}
@@ -232,11 +230,7 @@ export default function News({ laGiaoVien, tenNguoiDung }) {
             <EmptyState
               icon="📰"
               title="Chưa có bản tin nào"
-              description={
-                laGiaoVien
-                  ? "Hãy đăng bản tin đầu tiên để chia sẻ thông tin với lớp."
-                  : "Bản tin sẽ xuất hiện tại đây khi được giáo viên đăng."
-              }
+              description="Hãy đăng bản tin đầu tiên để chia sẻ thông tin với lớp."
               actionText={laGiaoVien ? "Đăng tin ngay" : undefined}
               onAction={laGiaoVien ? () => setTab("dang") : undefined}
             />
@@ -352,9 +346,22 @@ export default function News({ laGiaoVien, tenNguoiDung }) {
         </>
       )}
 
-      {tab === "dang" && laGiaoVien && (
+      {tab === "dang" && (
         <div className="news-form">
           <h3>✍️ Đăng bản tin mới</h3>
+          {!laGiaoVien && (
+            <p
+              style={{
+                background: "#fef3c7",
+                padding: 10,
+                borderRadius: 8,
+                fontSize: 14,
+              }}
+            >
+              ⚠️ Tin của học sinh sẽ chờ <b>giáo viên duyệt</b>.
+            </p>
+          )}
+
           <div className="news-form-group">
             <label>Tên của bạn</label>
             <input

@@ -64,6 +64,13 @@ service cloud.firestore {
         );
     }
 
+    function validStudentNews() {
+      return validNews()
+        && request.resource.data.vaiTro == 'hocsinh'
+        && request.resource.data.daDuyet == false
+        && request.resource.data.ghim == false;
+    }
+
     match /diemdanh/{documentId} {
       allow read: if isTeacher()
         || documentId == 'thongBaoToanTruong'
@@ -107,8 +114,12 @@ service cloud.firestore {
     }
 
     match /news/{newsId} {
-      allow read: if isTeacher() || resource.data.daDuyet == true;
-      allow create: if isTeacher() && validNews();
+      allow read: if true;
+      allow create: if (
+        isTeacher() && validNews()
+      ) || (
+        request.auth == null && validStudentNews()
+      );
       allow update: if isTeacher()
         && validNews()
         && request.resource.data.diff(resource.data)

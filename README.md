@@ -17,10 +17,6 @@ npm install
 npm run dev
 ```
 
-Vite cần các biến cấu hình client `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID` và `VITE_FIREBASE_APP_ID` trong `.env` hoặc `.env.local` khi chạy local; dùng [`.env.example`](./.env.example) làm mẫu tên biến. Trên Vercel, thêm đủ sáu biến tại **Settings → Environment Variables**, chọn **Production**, **Preview** và **Development**, lưu rồi redeploy deployment mới nhất. Nếu thiếu biến, ứng dụng hiển thị tên biến cần bổ sung thay vì ném lỗi trong lúc tải trang.
-
-Firebase Web API key là định danh công khai được gửi tới trình duyệt, không phải bí mật; giới hạn key theo website/referrer trong Google Cloud Console nếu khả dụng và bảo vệ dữ liệu bằng Firebase Auth cùng Firestore Rules.
-
 ## Build
 
 ```bash
@@ -57,7 +53,7 @@ Script giữ nguyên dữ liệu cũ, không ghi đè tài liệu đích đã t�
 3. Trong Firebase Console → Firestore Database → Rules, thay Rules hiện tại bằng nội dung trong [`firestore.rules`](./firestore.rules) và publish.
 4. Triển khai ứng dụng. Giáo viên cần đăng nhập lại sau khi được cấp claim.
 
-Claim `teacher: true` chỉ cấp qua Admin SDK; không cấp quyền từ dữ liệu client hoặc mã lớp. Rules chỉ cho giáo viên/admin ghi dữ liệu và chỉ cho khách đọc tin đã duyệt. Trang `/khach` hiện vẫn cần đọc danh sách lớp và tài liệu điểm danh tháng; vì vậy các dữ liệu đó đang công khai, bao gồm cả các ngày khác trong tháng. Nếu không chủ ý công khai danh sách học sinh và lịch sử điểm danh, cần chuyển trang khách sang một luồng chỉ trả dữ liệu đã lọc trước khi phát hành.
+Claim `teacher: true` chỉ cấp qua Admin SDK; không cấp quyền từ dữ liệu client hoặc mã lớp. Rules cho phép khách đọc danh sách lớp/điểm danh tháng và đọc/tạo tin chờ duyệt để giữ trang học sinh hoạt động; dữ liệu khuôn mặt và TKB chỉ giáo viên đọc/ghi. Nếu điểm danh/lớp không nên công khai, cần đổi luồng truy cập khách trước khi mở Rules.
 
 ### Sao lưu Firestore tự động trên Vercel
 
@@ -108,8 +104,6 @@ Chatbot gọi Groq API qua endpoint máy chủ `/api/chat`. Không đặt API ke
 - **Chạy Cloudflare Function local:** tạo `.dev.vars` ở thư mục gốc với `GROQ_API_KEY=...`, chạy `npm run build`, sau đó `npx wrangler pages dev dist`. Không dùng `npm run dev` để kiểm tra endpoint serverless.
 
 Tạo API key tại [Groq Console](https://console.groq.com/keys). Giới hạn tốc độ và mức sử dụng tùy model/tài khoản; chuyển nhà cung cấp không đảm bảo bỏ hoàn toàn rate limit.
-
-Ảnh bản tin được chuyển qua `/api/upload-image`; đặt `IMGBB_API_KEY` dưới dạng secret phía máy chủ trên Vercel, không dùng biến `VITE_*`. Nếu frontend chạy trên Cloudflare Pages, đặt thêm `VERCEL_API_ORIGIN` (origin HTTPS của deployment Vercel có endpoint này); Pages Function sẽ chuyển tiếp token đăng nhập tới Vercel để xác thực giáo viên.
 
 Mã nguồn không dùng Gemini SDK hoặc `GEMINI_API_KEY`; SDK không dùng đã được gỡ khỏi dependencies. Nếu biến `GEMINI_API_KEY` còn trong Vercel, xóa nó thủ công tại **Project Settings → Environment Variables** cho mọi môi trường, rồi redeploy nếu cần.
 
