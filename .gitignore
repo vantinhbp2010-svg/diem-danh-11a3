@@ -27,9 +27,10 @@ dist-ssr
 .env
 .env.local
 .env*.local
+.env*
+!.env.example
 .dev.vars
 .vercel
-.env*
 
 # Firebase Admin service-account keys
 service-account*.json

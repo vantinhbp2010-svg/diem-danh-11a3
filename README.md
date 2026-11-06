@@ -17,7 +17,9 @@ npm install
 npm run dev
 ```
 
-Vite cần các biến cấu hình client `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID` và `VITE_FIREBASE_APP_ID` trong `.env.local` khi chạy local; đặt cùng các biến trong cấu hình build của Vercel/Cloudflare. Firebase Web API key là định danh công khai được gửi tới trình duyệt, không phải bí mật; bảo vệ dữ liệu bằng Firebase Auth và Firestore Rules, không dựa vào việc giấu giá trị này.
+Vite cần các biến cấu hình client `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID` và `VITE_FIREBASE_APP_ID` trong `.env` hoặc `.env.local` khi chạy local; dùng [`.env.example`](./.env.example) làm mẫu tên biến. Trên Vercel, thêm đủ sáu biến tại **Settings → Environment Variables**, chọn **Production**, **Preview** và **Development**, lưu rồi redeploy deployment mới nhất. Nếu thiếu biến, ứng dụng hiển thị tên biến cần bổ sung thay vì ném lỗi trong lúc tải trang.
+
+Firebase Web API key là định danh công khai được gửi tới trình duyệt, không phải bí mật; giới hạn key theo website/referrer trong Google Cloud Console nếu khả dụng và bảo vệ dữ liệu bằng Firebase Auth cùng Firestore Rules.
 
 ## Build
 
