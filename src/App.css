@@ -5253,3 +5253,21 @@ td {
     color: var(--text-strong);
   }
 }
+
+/* Đảm bảo bộ chọn điểm danh thủ công luôn tương phản trong Dark Mode. */
+.attendance-manual-picker > .attendance-manual-picker-title {
+  color: #101828;
+}
+
+.attendance-manual-picker > .attendance-manual-picker-select {
+  color-scheme: light;
+  border: 1px solid #d0d5dd;
+  background-color: #ffffff;
+  color: #101828;
+  -webkit-text-fill-color: #101828;
+}
+
+.attendance-manual-picker > .attendance-manual-picker-select option {
+  background-color: #ffffff;
+  color: #101828;
+}

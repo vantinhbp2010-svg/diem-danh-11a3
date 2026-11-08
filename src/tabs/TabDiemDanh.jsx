@@ -189,6 +189,7 @@ function TabDiemDanh({
 
       {!tietHienTai && (
         <div
+          className="attendance-manual-picker"
           style={{
             padding: 12,
             background: "#dbeafe",
@@ -200,9 +201,12 @@ function TabDiemDanh({
             flexWrap: "wrap",
           }}
         >
-          <b>📚 Chọn buổi và tiết:</b>
+          <b className="attendance-manual-picker-title">
+            📚 Chọn buổi và tiết:
+          </b>
 
           <select
+            className="attendance-manual-picker-select"
             value={buoiThuCong}
             onChange={(e) => {
               const b = e.target.value;
@@ -216,6 +220,7 @@ function TabDiemDanh({
           </select>
 
           <select
+            className="attendance-manual-picker-select"
             value={tietThuCong}
             onChange={(e) => setTietThuCong(Number(e.target.value))}
             style={{ padding: "8px 14px", fontSize: 15 }}
