@@ -4712,15 +4712,18 @@ a:focus-visible {
 /* ============ CHẾ ĐỘ TỐI THEO HỆ THỐNG ============ */
 @media (prefers-color-scheme: dark) {
   :root {
+    color-scheme: dark;
     --bg-page: #0c111d;
     --bg-subtle: #1d2939;
     --bg-surface: #101828;
+    --bg-hover: #344054;
     --bg: var(--bg-page);
     --bg-alt: var(--bg-subtle);
     --bg-elevated: #101828;
     --surface: #101828;
     --surface-hover: #1d2939;
     --border-subtle: #344054;
+    --border-default: #475467;
     --border: var(--border-subtle);
     --border-hover: #475467;
     --border-strong: #475467;
@@ -4730,7 +4733,7 @@ a:focus-visible {
     --text-secondary: #d0d5dd;
     --text-tertiary: #98a2b3;
     --text-quaternary: #98a2b3;
-    --text-disabled: #667085;
+    --text-disabled: #98a2b3;
     --text-muted: var(--text-quaternary);
     --primary-600: #84adff;
     --primary-700: #b2ccff;
@@ -4885,6 +4888,17 @@ a:focus-visible {
   .chatbot-note {
     background: var(--warning-light);
     color: var(--warning-dark);
+  }
+
+  .empty-state {
+    border-color: var(--border-default);
+    background: var(--bg-subtle);
+    color: var(--text-tertiary);
+  }
+
+  .empty-state h3,
+  .empty-state p {
+    color: var(--text-secondary);
   }
 
   .chatbot-header {
