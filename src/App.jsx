@@ -395,24 +395,7 @@ export default function App() {
   const handleSuaHomNay = useCallback(async (id, buoi, tiet, status, time) => {
     try {
       const todayStr = layNgayHomNay();
-      const data = await getAttendanceByMonth(todayStr.slice(0, 7));
-      if (!data[todayStr]) data[todayStr] = {};
-      if (!data[todayStr][id]) data[todayStr][id] = {};
-      if (!data[todayStr][id][buoi]) data[todayStr][id][buoi] = {};
-
-      let diemTru = 0;
-      if (status === "Đi trễ") diemTru = -3;
-      else if (status === "Vắng") diemTru = -10;
-      else if (status === "Có phép") diemTru = -5;
-
-      data[todayStr][id][buoi][`tiet${tiet}`] = {
-        trangThai: status,
-        gioVao: time,
-        phutTre: 0,
-        diemTru,
-      };
-      const { saveAttendance } = await import("./storage");
-      await saveAttendance(data, todayStr.slice(0, 7));
+      await updateAttendance(id, todayStr, buoi, tiet, status, time);
 
       showToast({ message: "Đã sửa điểm danh", type: "success" });
       await refresh();

@@ -2,9 +2,13 @@ import { db } from "./firebase";
 import {
   collection,
   doc,
+  deleteField,
+  FieldPath,
   getDoc,
   getDocs,
+  runTransaction,
   setDoc,
+  updateDoc,
 } from "firebase/firestore";
 import {
   tinhTrangThai,
@@ -49,6 +53,63 @@ function monthOfDate(date) {
 function attendanceRef(month) {
   validateMonth(month);
   return doc(db, "diemdanh", `diemdanh_thang_${month}`);
+}
+
+function makeNestedAttendancePatch(updates) {
+  const data = {};
+  for (const { segments, value, remove } of updates) {
+    if (remove) continue;
+    let node = data;
+    for (const segment of segments.slice(0, -1)) {
+      if (!Object.hasOwn(node, segment)) {
+        Object.defineProperty(node, segment, {
+          value: {},
+          enumerable: true,
+          configurable: true,
+          writable: true,
+        });
+      }
+      node = node[segment];
+    }
+    Object.defineProperty(node, segments.at(-1), {
+      value,
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
+  }
+  return data;
+}
+
+async function updateAttendanceFields(month, updates) {
+  if (updates.length === 0) return;
+
+  const ref = attendanceRef(month);
+  const fieldPaths = updates.map(({ segments }) => new FieldPath("data", ...segments));
+  const updateArgs = updates.flatMap((update, index) => [
+    fieldPaths[index],
+    update.remove ? deleteField() : update.value,
+  ]);
+
+  try {
+    await updateDoc(ref, ...updateArgs);
+  } catch (error) {
+    if (error.code !== "not-found") throw error;
+
+    const createUpdates = updates.filter((update) => !update.remove);
+    if (createUpdates.length === 0) {
+      invalidateAttendanceMonth(month);
+      return;
+    }
+
+    await setDoc(
+      ref,
+      { data: makeNestedAttendancePatch(createUpdates) },
+      { mergeFields: createUpdates.map(({ segments }) => new FieldPath("data", ...segments)) }
+    );
+  }
+
+  invalidateAttendanceMonth(month);
 }
 
 export async function getAttendance() {
@@ -137,17 +198,16 @@ export async function removeStudentsFromAttendance(studentIds) {
     if (!match) continue;
 
     const data = snapshot.data().data || {};
-    let changed = false;
-    for (const day of Object.values(data)) {
+    const updates = [];
+    for (const [date, day] of Object.entries(data)) {
       for (const studentId of studentIdSet) {
         if (Object.hasOwn(day, studentId)) {
-          delete day[studentId];
-          changed = true;
+          updates.push({ segments: [date, studentId], remove: true });
         }
       }
     }
 
-    if (changed) await saveAttendance(data, match[1]);
+    await updateAttendanceFields(match[1], updates);
   }
 }
 
@@ -187,22 +247,36 @@ export async function markAttendance(
     diemTru: kq.diemTru,
   };
 
-  await setDoc(
-    attendanceRef(month),
-    {
-      data: {
-        [date]: {
-          [studentId]: {
-            [buoi]: {
-              [keyTiet]: record,
-            },
-          },
+  const ref = attendanceRef(month);
+  const fieldPath = new FieldPath("data", date, studentId, buoi, keyTiet);
+  const inserted = await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const data = snapshot.exists() ? snapshot.data().data || {} : {};
+    if (data[date]?.[studentId]?.[buoi]?.[keyTiet]) return false;
+
+    if (snapshot.exists()) {
+      transaction.update(ref, fieldPath, record);
+    } else {
+      transaction.set(
+        ref,
+        {
+          data: makeNestedAttendancePatch([
+            { segments: [date, studentId, buoi, keyTiet], value: record },
+          ]),
         },
-      },
-    },
-    { merge: true }
-  );
+        { merge: true }
+      );
+    }
+    return true;
+  });
   invalidateAttendanceMonth(month);
+
+  if (!inserted) {
+    return {
+      ok: false,
+      message: `Học sinh này đã điểm danh tiết ${tiet} rồi!`,
+    };
+  }
 
   return {
     ok: true,
@@ -217,68 +291,68 @@ export async function syncQueuedAttendance(payload) {
   }
 
   const month = monthOfDate(date);
-  const data = await getAttendanceByMonth(month);
   const keyTiet = `tiet${tiet}`;
-  if (data[date]?.[studentId]?.[buoi]?.[keyTiet]) return;
+  const ref = attendanceRef(month);
+  const fieldPath = new FieldPath("data", date, studentId, buoi, keyTiet);
+  const inserted = await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const data = snapshot.exists() ? snapshot.data().data || {} : {};
+    if (data[date]?.[studentId]?.[buoi]?.[keyTiet]) return false;
 
-  if (!data[date]) data[date] = {};
-  if (!data[date][studentId]) data[date][studentId] = {};
-  if (!data[date][studentId][buoi]) data[date][studentId][buoi] = {};
-  data[date][studentId][buoi][keyTiet] = record;
-  await saveAttendance(data, month);
+    if (snapshot.exists()) {
+      transaction.update(ref, fieldPath, record);
+    } else {
+      transaction.set(
+        ref,
+        {
+          data: makeNestedAttendancePatch([
+            { segments: [date, studentId, buoi, keyTiet], value: record },
+          ]),
+        },
+        { merge: true }
+      );
+    }
+    return true;
+  });
+  if (inserted) invalidateAttendanceMonth(month);
 }
 
 export async function restoreAttendanceSession(studentId, date, buoi, records) {
   const month = monthOfDate(date);
   const data = await getAttendanceByMonth(month);
-  if (!data[date]) data[date] = {};
-  if (!data[date][studentId]) data[date][studentId] = {};
-
-  if (records && Object.keys(records).length > 0) {
-    data[date][studentId][buoi] = records;
-  } else {
-    delete data[date][studentId][buoi];
-    if (Object.keys(data[date][studentId]).length === 0) {
-      delete data[date][studentId];
-    }
-  }
-
-  await saveAttendance(data, month);
+  const currentRecords = data[date]?.[studentId]?.[buoi] || {};
+  const restoredRecords = records || {};
+  const updates = [
+    ...Object.keys(currentRecords)
+      .filter((keyTiet) => !Object.hasOwn(restoredRecords, keyTiet))
+      .map((keyTiet) => ({
+        segments: [date, studentId, buoi, keyTiet],
+        remove: true,
+      })),
+    ...Object.entries(restoredRecords).map(([keyTiet, record]) => ({
+      segments: [date, studentId, buoi, keyTiet],
+      value: record,
+    })),
+  ];
+  await updateAttendanceFields(month, updates);
 }
 
 export async function xoaDiemDanh(studentId, buoi, tiet) {
   const today = layNgayHomNay();
   const month = monthOfDate(today);
-  const data = await getAttendanceByMonth(month);
-
-  if (!data[today] || !data[today][studentId] || !data[today][studentId][buoi]) {
-    return;
-  }
-
   const keyTiet = `tiet${tiet}`;
-  delete data[today][studentId][buoi][keyTiet];
-
-  if (Object.keys(data[today][studentId][buoi]).length === 0) {
-    delete data[today][studentId][buoi];
-  }
-
-  if (Object.keys(data[today][studentId]).length === 0) {
-    delete data[today][studentId];
-  }
-
-  await saveAttendance(data, month);
+  await updateAttendanceFields(month, [
+    { segments: [today, studentId, buoi, keyTiet], remove: true },
+  ]);
 }
 
 export async function xoaTatCaCuaHocSinh(studentId, maLop) {
   if (!maLop) throw new Error("Thiếu mã lớp");
   const today = layNgayHomNay();
   const month = monthOfDate(today);
-  const data = await getAttendanceByMonth(month);
-
-  if (data[today] && data[today][studentId]) {
-    delete data[today][studentId];
-  }
-  await saveAttendance(data, month);
+  await updateAttendanceFields(month, [
+    { segments: [today, studentId], remove: true },
+  ]);
 
   const { clearFaces } = await import("./faceStorage");
   await clearFaces(maLop, studentId);
@@ -296,11 +370,6 @@ export async function getDanhSachNgay() {
 
 export async function updateAttendance(studentId, date, buoi, tiet, trangThai, gioVao) {
   const month = monthOfDate(date);
-  const data = await getAttendanceByMonth(month);
-  if (!data[date]) data[date] = {};
-  if (!data[date][studentId]) data[date][studentId] = {};
-  if (!data[date][studentId][buoi]) data[date][studentId][buoi] = {};
-
   const keyTiet = `tiet${tiet}`;
   let diemTru = 0;
   let phutTre = 0;
@@ -321,76 +390,55 @@ export async function updateAttendance(studentId, date, buoi, tiet, trangThai, g
     diemTru = -5;
   }
 
-  data[date][studentId][buoi][keyTiet] = {
-    trangThai,
-    gioVao: gioVao || null,
-    phutTre,
-    diemTru,
-  };
-
-  await saveAttendance(data, month);
+  await updateAttendanceFields(month, [
+    {
+      segments: [date, studentId, buoi, keyTiet],
+      value: { trangThai, gioVao: gioVao || null, phutTre, diemTru },
+    },
+  ]);
 }
 
 export async function xacNhanKhongVang(studentId, date, buoi, tiet) {
   const month = monthOfDate(date);
-  const data = await getAttendanceByMonth(month);
-  if (!data[date]) data[date] = {};
-  if (!data[date][studentId]) data[date][studentId] = {};
-  if (!data[date][studentId][buoi]) data[date][studentId][buoi] = {};
-
   const keyTiet = `tiet${tiet}`;
-  const cu = data[date][studentId][buoi][keyTiet];
+  const ref = attendanceRef(month);
+  const fieldPath = new FieldPath("data", date, studentId, buoi, keyTiet);
+  const confirmed = await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const current = snapshot.exists()
+      ? snapshot.data().data?.[date]?.[studentId]?.[buoi]?.[keyTiet]
+      : null;
+    if (!current || current.trangThai !== "Vắng") return false;
 
-  if (!cu || cu.trangThai !== "Vắng") {
+    transaction.update(ref, fieldPath, {
+      trangThai: "Có phép",
+      gioVao: null,
+      phutTre: 0,
+      diemTru: -5,
+      ghiChu: "GV xác nhận vắng có phép",
+    });
+    return true;
+  });
+
+  if (!confirmed) {
     return { ok: false, message: "Chỉ xác nhận được khi đang Vắng" };
   }
-
-  data[date][studentId][buoi][keyTiet] = {
-    trangThai: "Có phép",
-    gioVao: null,
-    phutTre: 0,
-    diemTru: -5,
-    ghiChu: "GV xác nhận vắng có phép",
-  };
-
-  await saveAttendance(data, month);
+  invalidateAttendanceMonth(month);
   return { ok: true };
 }
 
 export async function xoaDiemDanhTheoNgay(studentId, date, buoi, tiet) {
   const month = monthOfDate(date);
-  const data = await getAttendanceByMonth(month);
-  if (!data[date] || !data[date][studentId]) return;
-
-  if (buoi && tiet) {
-    const keyTiet = `tiet${tiet}`;
-    if (data[date][studentId][buoi]) {
-      delete data[date][studentId][buoi][keyTiet];
-
-      if (Object.keys(data[date][studentId][buoi]).length === 0) {
-        delete data[date][studentId][buoi];
-      }
-    }
-  } else if (buoi) {
-    delete data[date][studentId][buoi];
-  } else {
-    delete data[date][studentId];
-  }
-
-  if (Object.keys(data[date][studentId] || {}).length === 0) {
-    delete data[date][studentId];
-  }
-
-  await saveAttendance(data, month);
+  const segments = buoi && tiet
+    ? [date, studentId, buoi, `tiet${tiet}`]
+    : buoi
+      ? [date, studentId, buoi]
+      : [date, studentId];
+  await updateAttendanceFields(month, [{ segments, remove: true }]);
 }
 
 export async function tuDongChuyenVang() {
   const today = layNgayHomNay();
-  const data = await getAttendance();
-
-  if (!data[today]) data[today] = {};
-
-  let coThayDoi = false;
 
   let tkbLop = null;
   let students = [];
@@ -429,45 +477,54 @@ export async function tuDongChuyenVang() {
   const tietSangDaHet = layTietDaKetThuc("sang");
   const tietChieuDaHet = layTietDaKetThuc("chieu");
 
+  const vangCanThem = [];
   students.forEach((hs) => {
-    if (!data[today][hs.id]) data[today][hs.id] = {};
-
     tietSangDaHet.forEach((t) => {
       if (!tietCoHoc("sang", t.tiet)) return;
-
-      const keyTiet = `tiet${t.tiet}`;
-      if (!data[today][hs.id].sang) data[today][hs.id].sang = {};
-      if (!data[today][hs.id].sang[keyTiet]) {
-        data[today][hs.id].sang[keyTiet] = {
-          trangThai: "Vắng",
-          gioVao: null,
-          phutTre: null,
-          diemTru: -10,
-        };
-        coThayDoi = true;
-      }
+      vangCanThem.push({
+        segments: [today, hs.id, "sang", `tiet${t.tiet}`],
+        value: { trangThai: "Vắng", gioVao: null, phutTre: null, diemTru: -10 },
+      });
     });
 
     tietChieuDaHet.forEach((t) => {
       if (!tietCoHoc("chieu", t.tiet)) return;
-
-      const keyTiet = `tiet${t.tiet}`;
-      if (!data[today][hs.id].chieu) data[today][hs.id].chieu = {};
-      if (!data[today][hs.id].chieu[keyTiet]) {
-        data[today][hs.id].chieu[keyTiet] = {
-          trangThai: "Vắng",
-          gioVao: null,
-          phutTre: null,
-          diemTru: -10,
-        };
-        coThayDoi = true;
-      }
+      vangCanThem.push({
+        segments: [today, hs.id, "chieu", `tiet${t.tiet}`],
+        value: { trangThai: "Vắng", gioVao: null, phutTre: null, diemTru: -10 },
+      });
     });
   });
 
-  if (coThayDoi) {
-    await saveAttendance(data);
-  }
+  if (vangCanThem.length === 0) return;
+
+  const month = monthOfDate(today);
+  const ref = attendanceRef(month);
+  const inserted = await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const data = snapshot.exists() ? snapshot.data().data || {} : {};
+    const missing = vangCanThem.filter(({ segments }) => {
+      const [date, studentId, buoi, keyTiet] = segments;
+      return !data[date]?.[studentId]?.[buoi]?.[keyTiet];
+    });
+    if (missing.length === 0) return false;
+
+    if (snapshot.exists()) {
+      const updateArgs = missing.flatMap(({ segments, value }) => [
+        new FieldPath("data", ...segments),
+        value,
+      ]);
+      transaction.update(ref, ...updateArgs);
+    } else {
+      transaction.set(
+        ref,
+        { data: makeNestedAttendancePatch(missing) },
+        { merge: true }
+      );
+    }
+    return true;
+  });
+  if (inserted) invalidateAttendanceMonth(month);
 }
 
 export async function tinhThongKeThang(thang, students) {

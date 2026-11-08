@@ -210,10 +210,15 @@ export default function QuanLyLop() {
       return;
 
     try {
-      await xoaLop(maLop);
+      const result = await xoaLop(maLop);
       await reload();
-      setMsg(`✅ Đã xóa lớp ${maLop}`);
-      setTimeout(() => setMsg(""), 3000);
+      if (result.canhBao) {
+        console.warn("Các bước dọn dữ liệu lớp chưa hoàn tất:", result.loiChiTiet);
+        setMsg(`⚠️ ${result.message}\n${result.loiChiTiet.join("\n")}`);
+      } else {
+        setMsg(`✅ ${result.message}`);
+        setTimeout(() => setMsg(""), 3000);
+      }
     } catch (err) {
       setMsg("❌ Lỗi: " + err.message);
     }
