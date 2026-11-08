@@ -320,6 +320,7 @@
 
 /* ============ DESIGN TOKENS ============ */
 :root {
+  color-scheme: light;
   --primary: #155eef;
   --primary-hover: #004eeb;
   --primary-dark: #004eeb;
@@ -2010,65 +2011,6 @@ body:has(.login-page) {
   0%, 100% { transform: translateX(0); }
   25% { transform: translateX(-6px); }
   75% { transform: translateX(6px); }
-}
-
-@media (prefers-color-scheme: dark) {
-  .login-form-side {
-    background:
-      radial-gradient(circle at 100% 0%, rgba(37, 99, 235, 0.12) 0%, transparent 50%),
-      radial-gradient(circle at 0% 100%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
-      #0f172a;
-  }
-
-  .login-form-box {
-    background: rgba(30, 41, 59, 0.9);
-    border-color: rgba(51, 65, 85, 0.8);
-  }
-
-  .login-form-box h2,
-  .input-group label {
-    color: #f1f5f9 !important;
-  }
-
-  .input-control input,
-  .input-control input:hover {
-    background: #1e293b !important;
-    border-color: #334155;
-    color: #f1f5f9 !important;
-  }
-
-  .input-control input:focus {
-    background: #0f172a !important;
-  }
-
-  .input-control input::placeholder {
-    color: #94a3b8 !important;
-  }
-
-  .input-group:focus-within label {
-    color: #93c5fd !important;
-  }
-
-  .login-divider::before {
-    background: linear-gradient(90deg, transparent, #475569 50%, transparent);
-  }
-
-  .login-divider span {
-    background: rgba(30, 41, 59, 0.95);
-    color: #94a3b8;
-  }
-
-  .login-home-link {
-    color: #e2e8f0;
-    background: rgba(30, 41, 59, 0.9);
-    border-color: #475569;
-  }
-
-  .btn-guest {
-    background: #1e293b;
-    color: #93c5fd;
-    border-color: #93c5fd;
-  }
 }
 
 .login-home-link {
@@ -4709,261 +4651,6 @@ a:focus-visible {
   background: var(--text-muted);
 }
 
-/* ============ CHẾ ĐỘ TỐI THEO HỆ THỐNG ============ */
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --bg-page: #0c111d;
-    --bg-subtle: #1d2939;
-    --bg-surface: #101828;
-    --bg-hover: #344054;
-    --bg: var(--bg-page);
-    --bg-alt: var(--bg-subtle);
-    --bg-elevated: #101828;
-    --surface: #101828;
-    --surface-hover: #1d2939;
-    --border-subtle: #344054;
-    --border-default: #475467;
-    --border: var(--border-subtle);
-    --border-hover: #475467;
-    --border-strong: #475467;
-    --text-primary: #f9fafb;
-    --text: var(--text-primary);
-    --text-strong: #ffffff;
-    --text-secondary: #d0d5dd;
-    --text-tertiary: #98a2b3;
-    --text-quaternary: #98a2b3;
-    --text-disabled: #98a2b3;
-    --text-muted: var(--text-quaternary);
-    --primary-600: #84adff;
-    --primary-700: #b2ccff;
-    --primary-dark: #84adff;
-    --success-dark: #75e0a7;
-    --warning-dark: #fec84b;
-    --danger-dark: #fda29b;
-    --focus-ring: rgba(41, 112, 255, 0.24);
-    --selection-bg: #344054;
-    --primary-light: #1d2939;
-    --primary-ring: rgba(41, 112, 255, 0.24);
-    --success-light: rgba(18, 183, 106, 0.12);
-    --warning-light: rgba(247, 144, 9, 0.12);
-    --danger-light: rgba(240, 68, 56, 0.12);
-    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
-    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.28);
-    --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.32);
-    --shadow-lg: 0 12px 20px -4px rgba(0, 0, 0, 0.4);
-    --shadow-xl: var(--shadow-lg);
-  }
-
-  body,
-  .login-form-side {
-    background: var(--bg-page);
-    color: var(--text-primary);
-  }
-
-  .container,
-  .header-row,
-  .thong-ke .card,
-  .kpi-card,
-  .dashboard-card,
-  .news-card,
-  .news-form,
-  .qr-card,
-  .top-box,
-  .modal-sua-box,
-  .login-form-box,
-  .caidat-info,
-  .log-box,
-  .sound-settings,
-  .chatbot-khung,
-  .chatbot-tin.bot .chatbot-bubble {
-    border-color: var(--border-subtle);
-    background: var(--surface);
-    color: var(--text-primary);
-  }
-
-  .header-row,
-  .header-row h1,
-  h1,
-  h2,
-  h3,
-  h4,
-  .news-title,
-  .login-form-box h2 {
-    color: var(--text-primary);
-  }
-
-  .nhom-tabs,
-  .tabcon,
-  .news-tabs,
-  .tabs,
-  .chon-buoi,
-  .lichsu-toolbar,
-  .caidat-box,
-  .log-box,
-  .chatbot-body,
-  .chatbot-header-right button {
-    border-color: var(--border-subtle);
-    background: var(--bg-subtle);
-  }
-
-  .nhom-tabs button.active,
-  .tabcon button.active,
-  .news-tabs button.active,
-  .tabs button.active {
-    background: var(--surface);
-    color: var(--text-primary);
-  }
-
-  th {
-    background: var(--bg-subtle);
-    color: var(--text-tertiary);
-  }
-
-  td,
-  tbody tr {
-    color: var(--text-secondary);
-  }
-
-  tbody tr,
-  tbody tr:hover {
-    background: var(--surface);
-  }
-
-  tbody tr.dunggio,
-  tbody tr.dunggio:hover {
-    background: var(--success-light);
-  }
-
-  tbody tr.tre,
-  tbody tr.tre:hover {
-    background: var(--warning-light);
-  }
-
-  tbody tr.vang,
-  tbody tr.vang:hover {
-    background: var(--danger-light);
-  }
-
-  input[type="text"],
-  input[type="email"],
-  input[type="search"],
-  input[type="number"],
-  input[type="date"],
-  input[type="month"],
-  input[type="time"],
-  input[type="password"],
-  select,
-  textarea,
-  .input-control input,
-  .chatbot-input input {
-    border-color: var(--border-strong);
-    background: var(--surface);
-    color: var(--text-primary);
-  }
-
-  .input-control input,
-  .input-control input:hover,
-  .input-control input:focus {
-    background: var(--surface) !important;
-    color: var(--text-primary) !important;
-  }
-
-  .login-intro {
-    background: var(--login-bg);
-  }
-
-  .login-intro h1,
-  .login-tagline,
-  .login-footer {
-    color: var(--text-inverse);
-  }
-
-  .login-divider span {
-    background: var(--surface);
-    color: var(--text-tertiary);
-  }
-
-  .login-hint,
-  .chatbot-note {
-    background: var(--warning-light);
-    color: var(--warning-dark);
-  }
-
-  .empty-state {
-    border-color: var(--border-default);
-    background: var(--bg-subtle);
-    color: var(--text-tertiary);
-  }
-
-  .empty-state h3,
-  .empty-state p {
-    color: var(--text-secondary);
-  }
-
-  .chon-buoi {
-    border-color: #d0d5dd;
-    background: #f0f4f8;
-    color-scheme: light;
-  }
-
-  .chon-buoi span {
-    color: #101828;
-    font-weight: 600;
-  }
-
-  .chon-buoi button:not(.active),
-  .chon-buoi select {
-    border-color: #d0d5dd;
-    background: #ffffff;
-    color: #101828;
-  }
-
-  .chon-buoi select {
-    color-scheme: light;
-  }
-
-  .chatbot-header {
-    border-bottom-color: var(--border-subtle);
-    background: var(--surface);
-    color: var(--text-primary);
-  }
-
-  .chatbot-tin.user .chatbot-bubble {
-    background: var(--primary);
-    color: var(--text-inverse);
-  }
-
-  .news-card.ghim,
-  .news-card.cho-duyet {
-    background: var(--surface);
-  }
-
-  .feature-item {
-    background: rgba(255, 255, 255, 0.08);
-  }
-
-  .login-home-link {
-    border-color: var(--border-strong);
-    background: var(--surface);
-    color: var(--text-secondary);
-  }
-
-  ::selection {
-    background: var(--selection-bg);
-    color: var(--text-primary);
-  }
-
-  ::-webkit-scrollbar-track {
-    background: var(--bg-subtle);
-  }
-
-  ::-webkit-scrollbar-thumb {
-    border-color: var(--bg-subtle);
-    background: var(--border-strong);
-  }
-}
-
 /* ============ ĐÁP ỨNG MÀN HÌNH NHỎ ============ */
 @media (max-width: 768px) {
   body {
@@ -5248,13 +4935,7 @@ td {
   white-space: pre-line;
 }
 
-@media (prefers-color-scheme: dark) {
-  .thong-ke .card b {
-    color: var(--text-strong);
-  }
-}
-
-/* Đảm bảo bộ chọn điểm danh thủ công luôn tương phản trong Dark Mode. */
+/* Đảm bảo bộ chọn điểm danh thủ công luôn tương phản. */
 .attendance-manual-picker > .attendance-manual-picker-title {
   color: #101828;
 }
@@ -5270,4 +4951,25 @@ td {
 .attendance-manual-picker > .attendance-manual-picker-select option {
   background-color: #ffffff;
   color: #101828;
+}
+
+/* Đảm bảo chữ banner thông báo trường học tương phản trên nền đỏ. */
+.banner-thong-bao.banner-thong-bao-admin {
+  border-color: rgba(255, 255, 255, 0.24);
+  background: #c62828;
+  color: #ffffff;
+}
+
+.banner-thong-bao.banner-thong-bao-admin .banner-thong-bao-title,
+.banner-thong-bao.banner-thong-bao-admin .banner-thong-bao-message,
+.banner-thong-bao.banner-thong-bao-admin .banner-thong-bao-close {
+  color: #ffffff;
+}
+
+.banner-thong-bao.banner-thong-bao-admin .banner-thong-bao-title {
+  opacity: 1;
+}
+
+.banner-thong-bao.banner-thong-bao-admin .banner-thong-bao-close:hover {
+  background: rgba(0, 0, 0, 0.24);
 }

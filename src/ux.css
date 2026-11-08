@@ -94,19 +94,6 @@
 .empty-state p { margin: 0; max-width: 460px; line-height: 1.5; }
 .empty-state button { margin-top: 8px; }
 
-@media (prefers-color-scheme: dark) {
-  .empty-state {
-    color: var(--text-tertiary, #98a2b3);
-    background: var(--bg-subtle, #1d2939);
-    border-color: var(--border-default, #475467);
-  }
-
-  .empty-state h3,
-  .empty-state p {
-    color: var(--text-secondary, #d0d5dd);
-  }
-}
-
 .skeleton-table, .skeleton-stats { display: grid; gap: 12px; padding: 18px 0; }
 .skeleton {
   display: block;
