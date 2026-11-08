@@ -4901,6 +4901,28 @@ a:focus-visible {
     color: var(--text-secondary);
   }
 
+  .chon-buoi {
+    border-color: #d0d5dd;
+    background: #f0f4f8;
+    color-scheme: light;
+  }
+
+  .chon-buoi span {
+    color: #101828;
+    font-weight: 600;
+  }
+
+  .chon-buoi button:not(.active),
+  .chon-buoi select {
+    border-color: #d0d5dd;
+    background: #ffffff;
+    color: #101828;
+  }
+
+  .chon-buoi select {
+    color-scheme: light;
+  }
+
   .chatbot-header {
     border-bottom-color: var(--border-subtle);
     background: var(--surface);

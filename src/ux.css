@@ -51,8 +51,17 @@
   box-shadow: 0 24px 60px #0f172a40;
 }
 
-.confirm-dialog h2 { margin: 0 0 12px; font-size: 20px; }
-.confirm-dialog p { margin: 0; line-height: 1.6; white-space: pre-line; }
+.confirm-dialog h2 {
+  margin: 0 0 12px;
+  color: #101828;
+  font-size: 20px;
+}
+.confirm-dialog p {
+  margin: 0;
+  color: #344054;
+  line-height: 1.6;
+  white-space: pre-line;
+}
 .confirm-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
 .confirm-actions button { padding: 9px 16px; }
 .confirm-actions .danger { background: #dc2626; }
