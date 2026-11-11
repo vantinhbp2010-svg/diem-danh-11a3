@@ -122,32 +122,9 @@ class ErrorBoundary extends Component {
   }
 }
 
-function ThemeSetting({ isDarkMode, onToggle }) {
-  return (
-    <section className="theme-setting" aria-labelledby="theme-setting-title">
-      <div>
-        <h4 id="theme-setting-title">🌓 Giao diện</h4>
-        <p>Chế độ tối (Dark Mode)</p>
-        <small>Giảm chói mắt khi sử dụng vào ban đêm.</small>
-      </div>
-      <button
-        type="button"
-        className="theme-setting-toggle"
-        aria-pressed={isDarkMode}
-        onClick={onToggle}
-      >
-        {isDarkMode ? "☀️ Chuyển sang Sáng" : "🌙 Chuyển sang Tối"}
-      </button>
-    </section>
-  );
-}
-
 export default function App() {
   const [nhom, setNhom] = useState("diemdanh");
   const [tabCon, setTabCon] = useState("homnay");
-  const [isDarkMode, setIsDarkMode] = useState(
-    () => localStorage.getItem("darkMode") === "true"
-  );
   const [isAdmin, setIsAdmin] = useState(false);
   const [attendance, setAttendance] = useState({});
   const [loadingAttendance, setLoadingAttendance] = useState(true);
@@ -172,11 +149,6 @@ export default function App() {
     danhSachLop,
     chonLop,
   } = useStudents();
-
-  useEffect(() => {
-    document.body.classList.toggle("dark-mode", isDarkMode);
-    localStorage.setItem("darkMode", String(isDarkMode));
-  }, [isDarkMode]);
 
   useEffect(() => {
     return subscribeTeacherState(({ isAdmin: admin }) => {
@@ -982,10 +954,6 @@ export default function App() {
               )}
               <SoundSettings />
               <BackgroundSettings />
-              <ThemeSetting
-                isDarkMode={isDarkMode}
-                onToggle={() => setIsDarkMode((current) => !current)}
-              />
               <div className="caidat-grid">
                 <button onClick={handleLogout} className="caidat-btn">
                   🚪 Đăng xuất
@@ -1407,10 +1375,6 @@ export default function App() {
             )}
             <SoundSettings />
             <BackgroundSettings />
-            <ThemeSetting
-              isDarkMode={isDarkMode}
-              onToggle={() => setIsDarkMode((current) => !current)}
-            />
             <div className="caidat-grid">
               <button onClick={handleBackupFirebase} className="caidat-btn">
                 💾 Backup

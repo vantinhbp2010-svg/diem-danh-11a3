@@ -413,13 +413,13 @@ export default function QuanLyLop() {
             <div
               style={{
                 padding: 16,
-                background: "#d1fae5",
+                background: "var(--success-light)",
                 borderRadius: 12,
                 marginBottom: 15,
                 border: "2px solid #10b981",
               }}
             >
-              <h4 style={{ margin: "0 0 12px", color: "#065f46" }}>
+              <h4 style={{ margin: "0 0 12px", color: "var(--success-dark)" }}>
                 ➕ Thêm học sinh mới
               </h4>
               <div
@@ -450,7 +450,7 @@ export default function QuanLyLop() {
                       if (e.key === "Enter") handleThemHS();
                     }}
                   />
-                  <p style={{ margin: "6px 0 0", fontSize: 12, color: "#64748b" }}>
+                  <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--text-secondary)" }}>
                     💡 Mã HS sẽ tự sinh: <b>{maHSTiepTheo}</b>
                   </p>
                 </div>
@@ -521,7 +521,7 @@ export default function QuanLyLop() {
         }}
       >
         <h4>📥 Tạo lớp mới từ Excel</h4>
-        <p style={{ fontSize: 13, color: "#64748b" }}>
+        <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
           File Excel chỉ cần <b>1 cột duy nhất</b>: cột A = Họ tên học sinh.
           <br />
           Mã HS sẽ có dạng <code>11A3-001</code>, <code>11A3-002</code>, ...
@@ -591,7 +591,7 @@ export default function QuanLyLop() {
           style={{
             marginTop: 30,
             padding: 15,
-            background: "#fee2e2",
+            background: "var(--danger-light)",
             borderRadius: 10,
             borderLeft: "5px solid #dc2626",
           }}

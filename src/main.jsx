@@ -7,9 +7,8 @@ import ToastProvider from "./ToastProvider";
 import { unlockAudio } from "./utils/sound";
 import "./index.css";
 
-if (localStorage.getItem("darkMode") === "true") {
-  document.body.classList.add("dark-mode");
-}
+document.body.classList.remove("dark-mode");
+localStorage.removeItem("darkMode");
 
 const App = lazy(() => import("./App.jsx"));
 const Login = lazy(() => import("./Login.jsx"));

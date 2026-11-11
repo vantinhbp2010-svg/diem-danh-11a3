@@ -352,7 +352,7 @@ export default function News({ laGiaoVien, tenNguoiDung }) {
           {!laGiaoVien && (
             <p
               style={{
-                background: "#fef3c7",
+                background: "var(--warning-light)",
                 padding: 10,
                 borderRadius: 8,
                 fontSize: 14,

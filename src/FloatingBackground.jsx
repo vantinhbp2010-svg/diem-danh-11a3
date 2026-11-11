@@ -12,6 +12,11 @@ const ITEMS = [
   { icon: "📝", left: "13%", size: 26, duration: 25, delay: 11 },
   { icon: "🖍️", left: "55%", size: 27, duration: 19, delay: 2 },
   { icon: "📎", left: "83%", size: 25, duration: 23, delay: 14 },
+  { icon: "🎓", left: "27%", size: 31, duration: 20, delay: 1 },
+  { icon: "💡", left: "41%", size: 26, duration: 24, delay: 10 },
+  { icon: "📚", left: "68%", size: 29, duration: 22, delay: 3 },
+  { icon: "✏️", left: "95%", size: 24, duration: 18, delay: 13 },
+  { icon: "📝", left: "3%", size: 28, duration: 21, delay: 15 },
 ];
 
 export default function FloatingBackground() {
