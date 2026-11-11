@@ -45,6 +45,7 @@ import SkeletonChart from "./components/skeleton/SkeletonChart";
 import SkeletonTable from "./components/skeleton/SkeletonTable";
 import SoundSettings from "./components/SoundSettings";
 import BackgroundSettings from "./components/BackgroundSettings";
+import PasswordSettings from "./components/PasswordSettings";
 import { playAttendance, playError } from "./utils/sound";
 import { confirmToast } from "./utils/toast";
 import "./App.css";
@@ -954,6 +955,7 @@ export default function App() {
               )}
               <SoundSettings />
               <BackgroundSettings />
+              <PasswordSettings />
               <div className="caidat-grid">
                 <button onClick={handleLogout} className="caidat-btn">
                   🚪 Đăng xuất
@@ -1375,6 +1377,7 @@ export default function App() {
             )}
             <SoundSettings />
             <BackgroundSettings />
+            <PasswordSettings />
             <div className="caidat-grid">
               <button onClick={handleBackupFirebase} className="caidat-btn">
                 💾 Backup

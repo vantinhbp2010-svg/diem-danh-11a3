@@ -1,5 +1,6 @@
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
+import { getFirestore } from "firebase-admin/firestore";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import process from "node:process";
@@ -67,4 +68,9 @@ export async function requireAdmin(req, res) {
 
 export function getAdminAuthInstance() {
   return getAdminAuth();
+}
+
+export function getAdminFirestoreInstance() {
+  getAdminAuth();
+  return getFirestore();
 }

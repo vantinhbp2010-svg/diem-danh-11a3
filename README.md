@@ -87,6 +87,17 @@ npm run firebase:grant-admin
 
 Sau đó đăng nhập lại bằng tài khoản quản trị. Admin có thể tạo giáo viên với mật khẩu từ 8 đến 128 ký tự và xóa tài khoản giáo viên; API từ chối các yêu cầu chưa xác thực, không có claim admin, hoặc cố xóa tài khoản quản trị. Các API này chạy trên Vercel Functions; khi deploy frontend chỉ lên Cloudflare Pages, cần triển khai các API trên Vercel cùng domain/proxy `/api/admin/*` thì chức năng mới khả dụng.
 
+### Đổi và khôi phục mật khẩu giáo viên
+
+Giáo viên đã đăng nhập có thể đổi mật khẩu trong **Cài đặt**; thao tác yêu cầu nhập mật khẩu hiện tại để Firebase xác thực lại. Trang đăng nhập hỗ trợ khôi phục bằng mã OTP 6 số gửi qua Resend. Trước khi triển khai, cấu hình các biến sau trong môi trường server Vercel (không dùng tiền tố `VITE_`):
+
+- `RESEND_API_KEY`: API key của Resend.
+- `RESEND_FROM_EMAIL`: địa chỉ gửi thuộc domain đã xác minh trong Resend.
+- `PASSWORD_RESET_SECRET`: secret ngẫu nhiên tối thiểu 32 ký tự để băm OTP.
+- `FIREBASE_SERVICE_ACCOUNT` và `FIREBASE_PROJECT_ID`: thông tin Firebase Admin đã dùng cho các API quản trị.
+
+Các API `/api/auth/forgot-password` và `/api/auth/reset-password` phải chạy trên Vercel Functions (hoặc được proxy cùng origin đến Vercel); `npm run dev` chỉ chạy frontend. Firestore lưu hash OTP, giới hạn số lần nhập sai, thời hạn 10 phút và các khóa giới hạn gửi. Có thể cấu hình TTL policy trên trường `expiresAt` cho collection `password_reset_codes` và `password_reset_rate_limits` để tự dọn tài liệu hết hạn. Mật khẩu mới sẽ thu hồi các refresh token hiện có, vì vậy người dùng cần đăng nhập lại trên những thiết bị khác.
+
 ## Deploy
 
 ```bash

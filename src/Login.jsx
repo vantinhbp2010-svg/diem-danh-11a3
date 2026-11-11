@@ -9,6 +9,15 @@ export default function Login() {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isForgot, setIsForgot] = useState(false);
+  const [resetStep, setResetStep] = useState(1);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetCode, setResetCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [resetMessage, setResetMessage] = useState("");
+  const [resetError, setResetError] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [notice, setNotice] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -26,6 +35,7 @@ export default function Login() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+    setNotice("");
     setLoading(true);
     try {
       const res = await login(email.trim(), password);
@@ -37,6 +47,74 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleSendResetCode(event) {
+    event.preventDefault();
+    setResetError("");
+    setResetMessage("");
+    setResetLoading(true);
+    try {
+      const response = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: resetEmail.trim() }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result.error || "Không thể gửi mã lúc này.");
+      }
+      setResetMessage(result.message);
+      setResetStep(2);
+    } catch (requestError) {
+      setResetError(requestError.message);
+    } finally {
+      setResetLoading(false);
+    }
+  }
+
+  async function handleResetPassword(event) {
+    event.preventDefault();
+    setResetError("");
+    setResetMessage("");
+    setResetLoading(true);
+    try {
+      const response = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: resetEmail.trim(),
+          code: resetCode.trim(),
+          newPassword,
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result.error || "Không thể đặt lại mật khẩu.");
+      }
+
+      setEmail(resetEmail.trim());
+      setPassword("");
+      setNotice("Đặt lại mật khẩu thành công. Bạn có thể đăng nhập bằng mật khẩu mới.");
+      setIsForgot(false);
+      setResetStep(1);
+      setResetCode("");
+      setNewPassword("");
+      setResetMessage("");
+    } catch (requestError) {
+      setResetError(requestError.message);
+    } finally {
+      setResetLoading(false);
+    }
+  }
+
+  function handleCancelReset() {
+    setIsForgot(false);
+    setResetStep(1);
+    setResetCode("");
+    setNewPassword("");
+    setResetMessage("");
+    setResetError("");
   }
 
   return (
@@ -146,6 +224,83 @@ export default function Login() {
           </form>
 
           {error && <div className="error" role="alert">{error}</div>}
+          {notice && <p className="password-reset-notice" role="status">{notice}</p>}
+
+          {!isForgot ? (
+            <button
+              type="button"
+              className="forgot-password-link"
+              onClick={() => {
+                setResetEmail(email);
+                setResetError("");
+                setResetMessage("");
+                setIsForgot(true);
+              }}
+            >
+              Quên mật khẩu?
+            </button>
+          ) : (
+            <section className="password-reset-panel" aria-labelledby="password-reset-title">
+              <h3 id="password-reset-title">Khôi phục mật khẩu</h3>
+              {resetStep === 1 ? (
+                <form onSubmit={handleSendResetCode}>
+                  <label htmlFor="reset-email">Email tài khoản giáo viên</label>
+                  <input
+                    id="reset-email"
+                    type="email"
+                    autoComplete="email"
+                    value={resetEmail}
+                    onChange={(event) => setResetEmail(event.target.value)}
+                    required
+                  />
+                  <button type="submit" disabled={resetLoading}>
+                    {resetLoading ? "Đang gửi..." : "Gửi mã xác nhận"}
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={handleResetPassword}>
+                  <p className="password-reset-hint">
+                    Nhập mã 6 số đã gửi đến email nếu email thuộc tài khoản giáo viên.
+                  </p>
+                  <label htmlFor="reset-code">Mã xác nhận</label>
+                  <input
+                    id="reset-code"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    pattern="[0-9]{6}"
+                    maxLength={6}
+                    value={resetCode}
+                    onChange={(event) => setResetCode(event.target.value.replace(/\D/g, ""))}
+                    required
+                  />
+                  <label htmlFor="reset-new-password">Mật khẩu mới</label>
+                  <input
+                    id="reset-new-password"
+                    type="password"
+                    autoComplete="new-password"
+                    minLength={8}
+                    maxLength={128}
+                    value={newPassword}
+                    onChange={(event) => setNewPassword(event.target.value)}
+                    required
+                  />
+                  <button type="submit" disabled={resetLoading}>
+                    {resetLoading ? "Đang cập nhật..." : "Đặt lại mật khẩu"}
+                  </button>
+                </form>
+              )}
+              {resetMessage && <p className="password-reset-message" role="status">{resetMessage}</p>}
+              {resetError && <p className="password-reset-error" role="alert">{resetError}</p>}
+              <button
+                type="button"
+                className="password-reset-back"
+                onClick={handleCancelReset}
+              >
+                Quay lại đăng nhập
+              </button>
+            </section>
+          )}
 
           <div className="login-hint">
             <p>
