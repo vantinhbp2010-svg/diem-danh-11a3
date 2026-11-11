@@ -6,6 +6,11 @@ import { registerSW } from "virtual:pwa-register";
 import ToastProvider from "./ToastProvider";
 import { unlockAudio } from "./utils/sound";
 import "./index.css";
+
+if (localStorage.getItem("darkMode") === "true") {
+  document.body.classList.add("dark-mode");
+}
+
 const App = lazy(() => import("./App.jsx"));
 const Login = lazy(() => import("./Login.jsx"));
 const Khach = lazy(() => import("./Khach.jsx"));
