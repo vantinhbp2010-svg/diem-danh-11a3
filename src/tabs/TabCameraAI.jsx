@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { layThuHienTai } from "../thoiKhoaBieu";
-import { playSuccess } from "../utils/sound";
+import { isSoundEnabled, playSuccess, unlockAudio } from "../utils/sound";
 
 /* =============================================================
    TAB CAMERA AI
@@ -23,12 +23,18 @@ function TabCameraAI({ students, maLop, onMark }) {
   const tietTimerRef = useRef(null);
   const videoRef = useRef(null);
   const streamRef = useRef(null);
+  const logContainerRef = useRef(null);
   const dangXuLyRef = useRef(false);   // ✅ Thêm dòng này — tránh overlap khi detect chậm
 
   function addLog(text) {
     const time = new Date().toTimeString().slice(0, 8);
-    setLastLog((prev) => [`[${time}] ${text}`, ...prev].slice(0, 30));
+    setLastLog((prev) => [...prev, `[${time}] ${text}`].slice(-30));
   }
+
+  useEffect(() => {
+    const logContainer = logContainerRef.current;
+    if (logContainer) logContainer.scrollTop = logContainer.scrollHeight;
+  }, [lastLog]);
 
   useEffect(() => {
     async function capNhat() {
@@ -100,6 +106,11 @@ function TabCameraAI({ students, maLop, onMark }) {
   }
 
   async function start() {
+    if (isSoundEnabled()) {
+      void unlockAudio().catch((error) => {
+        console.warn("Không thể kích hoạt âm thanh camera:", error);
+      });
+    }
     setMsg("Đang tải model...");
     setLastLog([]);
     setSoNhanDien(0);
@@ -222,7 +233,7 @@ function TabCameraAI({ students, maLop, onMark }) {
           const res = await onMark(hs.id, t.buoi, t.tiet, { sound: false });
           if (res?.ok) {
             setSoNhanDien((c) => c + 1);
-            playSuccess();
+            if (isSoundEnabled()) playSuccess();
           }
 
           addLog(
@@ -280,117 +291,87 @@ function TabCameraAI({ students, maLop, onMark }) {
   }, []);
 
   return (
-    <>
+    <section className="camera-container" aria-label="Điểm danh bằng camera AI">
       {tietHienTai ? (
-        <div
-          style={{
-            background: "linear-gradient(135deg, #d1fae5, #a7f3d0)",
-            borderLeft: "6px solid #10b981",
-            padding: 16,
-            borderRadius: 12,
-            marginBottom: 15,
-          }}
-        >
-          <p
-            style={{
-              margin: 0,
-              fontSize: 16,
-              fontWeight: 700,
-              color: "#065f46",
-            }}
-          >
+        <div className="camera-status camera-status--lesson" role="status">
+          <div className="camera-status-copy">
+            <p className="camera-status-title">
             📚 Đang tiết {tietHienTai.tiet} — Buổi{" "}
             {tietHienTai.buoi === "sang" ? "Sáng" : "Chiều"}
-          </p>
-          <p style={{ margin: "5px 0 0", fontSize: 14, color: "#047857" }}>
-            ⏰ Thời gian: {tietHienTai.vao} — {tietHienTai.ra}
-          </p>
+            </p>
+            <p className="camera-status-detail">
+              ⏰ Thời gian: {tietHienTai.vao} — {tietHienTai.ra}
+            </p>
+          </div>
+          <span className="camera-badge">Đã nhận diện: {soNhanDien}</span>
         </div>
       ) : (
-        <div
-          style={{
-            background: "#fef3c7",
-            borderLeft: "6px solid #f59e0b",
-            padding: 16,
-            borderRadius: 12,
-            marginBottom: 15,
-          }}
-        >
-          <p
-            style={{
-              margin: 0,
-              fontSize: 15,
-              fontWeight: 700,
-              color: "#78350f",
-            }}
-          >
-            ⏰ Hiện không trong tiết học nào
-          </p>
-          <p style={{ margin: "5px 0 0", fontSize: 13, color: "#92400e" }}>
-            Camera vẫn bật được — chỉ thông báo khi nhận diện sai giờ
-          </p>
+        <div className="camera-status camera-status--idle" role="status">
+          <div className="camera-status-copy">
+            <p className="camera-status-title">
+              ⏰ Hiện không trong tiết học nào
+            </p>
+            <p className="camera-status-detail">
+              Camera vẫn bật được — chỉ thông báo khi nhận diện sai giờ
+            </p>
+          </div>
+          <span className="camera-badge">Đã nhận diện: {soNhanDien}</span>
         </div>
       )}
 
-      <p>
-        Đã nhận diện:{" "}
-        <b style={{ color: "#10b981" }}>{soNhanDien}</b> học sinh
-      </p>
-
-      <div
-        style={{
-          width: 600,
-          maxWidth: "100%",
-          margin: "15px 0",
-          borderRadius: 12,
-          overflow: "hidden",
-          background: "#000",
-        }}
-      >
+      <div className={`camera-video-shell${running ? " is-running" : ""}`}>
         <video
           ref={videoRef}
           autoPlay
           muted
           playsInline
-          style={{ width: "100%", display: "block" }}
+          className="camera-video"
+          aria-label="Hình ảnh camera điểm danh"
         />
+        <div className="camera-video-overlay" aria-hidden="true">
+          <span className="camera-corner camera-corner--tl" />
+          <span className="camera-corner camera-corner--tr" />
+          <span className="camera-corner camera-corner--bl" />
+          <span className="camera-corner camera-corner--br" />
+          <span className="camera-scan-line" />
+        </div>
+        <span className={`camera-live${running ? " is-live" : ""}`}>
+          <span aria-hidden="true" />
+          {running ? "Đang quét" : "Camera đang tắt"}
+        </span>
       </div>
 
       {!running ? (
         <motion.button
           onClick={start}
           whileTap={{ scale: 0.95 }}
-          style={{ fontSize: 18, padding: "12px 24px" }}
+          className="camera-action camera-action--start"
         >
-          ▶ Bật camera
+          <span aria-hidden="true">▶</span> Bật Camera
         </motion.button>
       ) : (
         <motion.button
           onClick={stop}
           whileTap={{ scale: 0.95 }}
-          style={{
-            background: "#e74c3c",
-            fontSize: 18,
-            padding: "12px 24px",
-          }}
+          className="camera-action camera-action--stop"
         >
-          ⏹ Tắt camera
+          <span aria-hidden="true">⏹</span> Tắt Camera
         </motion.button>
       )}
 
       {msg && <div className="msg">{msg}</div>}
 
       {lastLog.length > 0 && (
-        <div className="log-box">
+        <div className="camera-log" ref={logContainerRef}>
           <h4>Nhật ký ({lastLog.length})</h4>
-          <ul>
+          <ul role="log" aria-live="polite">
             {lastLog.map((line, i) => (
               <li key={i}>{line}</li>
             ))}
           </ul>
         </div>
       )}
-    </>
+    </section>
   );
 }
 
